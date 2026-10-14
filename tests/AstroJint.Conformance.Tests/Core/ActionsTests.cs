@@ -23,7 +23,7 @@ namespace AstroJint.Conformance.Core;
 /// cookie cannot change it. The cookie value is built from <c>serializeActionResult()</c> as upstream does.</item>
 /// <item>'starts in dev and exposes action RPC routes' needs a dev server for a project that has no adapter. The port builds the
 /// same project (static output, one <c>prerender = false</c> page, the <c>ping</c> action) with the adapter and posts to the
-/// RPC route of the host. <c>devalue.parse()</c> is replaced by reading the flat devalue array.</item>
+/// RPC route of the host. <c>devalue.parse()</c> is replaced by the <c>Devalue</c> reader of this folder.</item>
 /// <item>'Works with adapter and all pages prerendered' uses the <c>actions</c> project with <c>output: 'static'</c> in the dev
 /// server. That project cannot be built as static output, because <c>invalid.astro</c> calls an action while it is prerendered.
 /// The port uses a small project (<c>core-actions-static</c>) with the <c>subscribe</c> action and, in the variant of this
@@ -70,14 +70,6 @@ public class ActionsTests(SiteHost sites)
         var payload = redirect.SetCookieValue("ACTION_PAYLOAD");
         Assert.False(string.IsNullOrEmpty(payload), "Expected the redirect to set the ACTION_PAYLOAD cookie.");
         return await site.SendAsync(HttpMethod.Get, location.PathAndQuery, null, ("Cookie", $"ACTION_PAYLOAD={payload}"));
-    }
-
-    // devalue flattens {"ok":true} to [{"ok":1},true]: the properties of the root hold the indexes of their values.
-    private static JsonElement ReadDevalueProperty(string body, string property)
-    {
-        using var document = JsonDocument.Parse(body);
-        var values = document.RootElement;
-        return values[values[0].GetProperty(property).GetInt32()].Clone();
     }
 
     [Fact(DisplayName = "Astro Actions: dev: Does not process middleware cookie for prerendered routes")]
@@ -201,7 +193,7 @@ public class ActionsTests(SiteHost sites)
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("application/json+devalue", response.Content.Headers.ContentType?.MediaType);
-        Assert.True(ReadDevalueProperty(await response.ReadTextAsync(), "ok").GetBoolean());
+        Assert.True(Devalue.Parse(await response.ReadTextAsync())!["ok"]!.GetValue<bool>());
         Assert.Contains("Live page", await site.GetStringAsync("/"));
     }
 
@@ -215,8 +207,8 @@ public class ActionsTests(SiteHost sites)
         using var response = await site.SendAsync(HttpMethod.Post, "/_actions/subscribe", Json("""{"channel":"bholmesdev"}"""));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.ReadTextAsync();
-        Assert.Equal("bholmesdev", ReadDevalueProperty(body, "channel").GetString());
-        Assert.Equal("smashed", ReadDevalueProperty(body, "subscribeButtonState").GetString());
+        var data = Devalue.Parse(await response.ReadTextAsync())!;
+        Assert.Equal("bholmesdev", data["channel"]!.GetValue<string>());
+        Assert.Equal("smashed", data["subscribeButtonState"]!.GetValue<string>());
     }
 }
