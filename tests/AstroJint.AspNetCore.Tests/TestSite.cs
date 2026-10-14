@@ -77,6 +77,15 @@ internal sealed class DistFolder : IDisposable
         return this;
     }
 
+    /// <summary>Adds or replaces a file of the server bundle, relative to the folder of its entry (<c>entry.mjs</c>).</summary>
+    public DistFolder WithServerFile(string relativePath, string content)
+    {
+        var path = Path.Combine(DistPath, "server", relativePath.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, content);
+        return this;
+    }
+
     public void Dispose()
     {
         try

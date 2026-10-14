@@ -39,6 +39,17 @@ Chunked output (e1) works too: relative dynamic `import("./chunks/...")` resolve
 `UseModules(serverDir)` with no extra shims, because e1 already has no `node:*` imports.
 The single-file bundle is still the recommended output (fewer files, one parse).
 
+> **Update.** The adapter cannot guarantee a single file: a project that uses server
+> islands (or any dynamic `import()` in on-demand code) still gets `server/entry.mjs` plus
+> `server/chunks/*.mjs`. The host therefore no longer relies on `UseModules(<dir>)`. It
+> loads the server bundle through `AstroModuleLoader`, which parses each file once for all
+> engines in the pool, resolves only relative imports inside the server folder, and turns a
+> refused import into a catchable rejection of `import()` (a static import that is refused
+> fails engine creation with a message that names the module and the reason, without host
+> paths). Jint does not turn a `ModuleResolutionException` thrown from `Resolve` into a
+> rejection when the `import()` runs on a script's own stack, so refusals are carried by a
+> sentinel `ResolvedSpecifier` and thrown as a `JavaScriptException` from `LoadModule`.
+
 ## Timing baseline (cold process, includes JIT warm-up; S3 measures properly)
 
 | Step | Time |

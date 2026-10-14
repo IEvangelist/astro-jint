@@ -1,5 +1,4 @@
 using System.Security.Cryptography;
-using Acornima.Ast;
 using Jint;
 using Jint.Native;
 using Jint.Native.Object;
@@ -8,7 +7,7 @@ using Jint.WebApi;
 
 namespace AstroJint.AspNetCore;
 
-/// <summary>Creates engines that run the Astro server bundle. The bundle is parsed once and shared by all engines.</summary>
+/// <summary>Creates engines that run the Astro server bundle. Its files are parsed once and shared by all engines.</summary>
 internal sealed class AstroEngineFactory(
     AstroOptions options,
     string entryPath,
@@ -37,17 +36,17 @@ internal sealed class AstroEngineFactory(
         })();
         """;
 
-    private readonly Lazy<Prepared<Module>> _entry = new(
-        () => Engine.PrepareModule(File.ReadAllText(entryPath), "entry.mjs"),
-        LazyThreadSafetyMode.ExecutionAndPublication);
+    private readonly AstroModuleLoader _modules = new(entryPath);
 
     public async Task<AstroEngineSlot> CreateAsync()
     {
-        var entry = _entry.Value;
         var context = new AstroRequestContext();
 
         var engine = new Engine(engineOptions =>
         {
+            engineOptions.UseModules(_modules);
+            // The messages of the loader name files of the bundle only, relative to its entry.
+            engineOptions.Modules.ExposeDetailedLoadErrors = true;
             engineOptions.UseWebApis();
             engineOptions.UseConsole(consoleSink);
             engineOptions.UseFetch(fetch => fetch.UrlFilter = options.FetchUrlFilter ?? (_ => false));
@@ -62,8 +61,7 @@ internal sealed class AstroEngineFactory(
         {
             engine.Execute(Prelude);
             engine.SetValue("__astroJint", CreateHostObject(engine, context));
-            engine.Modules.Add("entry", builder => builder.AddModule(entry));
-            var entryExports = await engine.Modules.ImportAsync("entry").ConfigureAwait(false);
+            var entryExports = await engine.Modules.ImportAsync(_modules.Entry).ConfigureAwait(false);
             engine.WebApi.SetFetchHandler(entryExports.Get("default"));
             return new AstroEngineSlot(engine, context);
         }

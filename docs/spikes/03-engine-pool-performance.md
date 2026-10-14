@@ -134,7 +134,8 @@ sufficient whole-request time limit, and `OperationDeadlineConstraint` is not ne
 1. **Pool of engines, one parsed module shared by all of them.** Parse the bundle once
    (`Engine.PrepareModule`), import it into each engine with `ModuleBuilder.AddModule(prepared)`.
    It cuts per-engine memory by 85% and per-engine startup by 60-70%, and was contamination-free
-   under concurrency.
+   under concurrency. The host applies the same rule to every file of a multi-file server bundle:
+   `AstroModuleLoader` prepares each file once and builds a per-engine module from it.
 2. **Default pool size: `Environment.ProcessorCount`, with Server GC.** The sample host sets
    `<ServerGarbageCollection>true</ServerGarbageCollection>`; the host library logs a warning
    when the pool is larger than 8 and Server GC is off, because that combination performs worse

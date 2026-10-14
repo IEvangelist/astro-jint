@@ -28,6 +28,11 @@ the server bundle. The adapter's `serverEntrypoint` becomes `entry.mjs`.
 | e2 | e1 + `output.codeSplitting: false` | Build fails: multiple inputs are not supported. Dead end. |
 | **e3** | e1 + `vite.ssr = { noExternal: true, target: 'webworker' }` | **One file**, `server/entry.mjs`, 600 KB. Zero `node:*` imports, zero dynamic imports, no `import.meta` use. |
 
+The single file is not guaranteed: server islands (and any other dynamic `import()` in
+on-demand code) are emitted as extra chunks, for example `server/chunks/Island_*.mjs`
+loaded from `entry.mjs` with `() => import("./chunks/Island_*.mjs")`. The host handles a
+multi-file server folder (see S2).
+
 ## What the default (chunked) bundle needs at runtime
 
 - `sharp` (326 KB chunk) pulls in `node:child_process`, `node:crypto`, `node:os`,
