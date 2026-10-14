@@ -12,8 +12,13 @@ const spikeAdapter = () => ({
       if (variant === 'e2') {
         vite.build = { rollupOptions: { output: { codeSplitting: false } } };
       }
-      if (variant === 'e3') {
+      if (variant === 'e3' || variant === 'e3m') {
         vite.ssr = { noExternal: true, target: 'webworker' };
+      }
+      if (variant === 'e3m') {
+        // Astro hard-codes top-level build.minify=false for the server build, so
+        // minification has to be requested through the ssr environment's Rolldown output.
+        vite.environments = { ssr: { build: { rolldownOptions: { output: { minify: true } } } } };
       }
       updateConfig({ image: { service: passthroughImageService() }, vite });
     },

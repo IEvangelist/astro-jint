@@ -1,0 +1,29 @@
+---
+export const prerender = false;
+const mode = Astro.url.searchParams.get('mode') ?? 'spin';
+if (mode === 'spin') {
+  while (true) {
+    // Synchronous infinite loop: exercises host-side request timeouts.
+  }
+}
+if (mode === 'burn') {
+  const until = Date.now() + Number(Astro.url.searchParams.get('ms') ?? 500);
+  while (Date.now() < until) {
+    // Bounded busy loop, then the page renders normally.
+  }
+}
+if (mode === 'recurse') {
+  const f = (n) => f(n + 1) + 1;
+  f(0);
+}
+if (mode === 'alloc') {
+  const hoard = [];
+  while (true) {
+    hoard.push(new Array(10_000).fill(hoard.length));
+  }
+}
+---
+<html lang="en">
+  <head><meta charset="utf-8" /><title>Spin</title></head>
+  <body><p>unreachable</p></body>
+</html>
