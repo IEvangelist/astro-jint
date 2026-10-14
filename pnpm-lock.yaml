@@ -35,6 +35,15 @@ importers:
         specifier: ^7.3.6
         version: 7.3.6(@types/node@24.19.1)(yaml@2.9.1)
 
+  tests/conformance/fixtures/jint-host-context:
+    dependencies:
+      astro:
+        specifier: ^7.3.6
+        version: 7.3.6(@types/node@24.19.1)(yaml@2.9.1)
+      astro-adapter-jint:
+        specifier: workspace:*
+        version: link:../../../../packages/astro-adapter-jint
+
 packages:
 
   '@astrojs/compiler-binding-android-arm64@0.5.1':

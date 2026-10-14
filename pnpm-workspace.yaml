@@ -2,5 +2,6 @@ packages:
   - packages/*
   - samples/hybrid
   - spikes/astro-app
+  - tests/conformance/fixtures/*
 allowBuilds:
   esbuild: true

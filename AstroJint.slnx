@@ -4,5 +4,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/AstroJint.AspNetCore.Tests/AstroJint.AspNetCore.Tests.csproj" />
+    <Project Path="tests/AstroJint.Conformance.Tests/AstroJint.Conformance.Tests.csproj" />
   </Folder>
 </Solution>
