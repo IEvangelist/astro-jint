@@ -1,9 +1,7 @@
 using System.Net;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using AngleSharp.Dom;
+using static AstroJint.Conformance.Core.ServerIslandRequests;
 
 namespace AstroJint.Conformance.Core;
 
@@ -21,7 +19,7 @@ namespace AstroJint.Conformance.Core;
 /// <c>JSON.stringify</c> gives upstream, so it travels as <c>text/plain</c> like the body of an upstream <c>Request</c>, and
 /// <c>Origin: http://example.com</c> becomes the origin of the site, because the host builds the URL of a request from its
 /// <c>Host</c> header.</item>
-/// <item><c>encryptString()</c> of Astro (WebCrypto) becomes <see cref="AesGcm"/> with the same wire format: 12 random bytes as upper
+/// <item><c>encryptString()</c> of Astro (WebCrypto) becomes <c>AesGcm</c> (<see cref="ServerIslandRequests"/>) with the same wire format: 12 random bytes as upper
 /// case hex, then the Base64 of the cipher text followed by the tag, with <c>export:&lt;name&gt;</c>, <c>props:&lt;name&gt;</c> and
 /// <c>slots:&lt;name&gt;</c> as authenticated data. The key is the <c>ASTRO_KEY</c> of the upstream tests. The upstream tests put it
 /// in their own environment, but the build runs in another process here, so the fixture sets it in its Astro config.</item>
@@ -46,8 +44,6 @@ public partial class ServerIslandsTests(SiteHost sites)
     private const string HybridFixture = "core-server-islands-hybrid";
     private const string CustomFetchFixture = "core-server-islands-custom-fetch";
 
-    // Same key as the fixture sets in its Astro config.
-    private const string AstroKey = "eKBaVEuI7YjfanEXHuJe/pwZKKt3LkAHeMxvTU7aR0M=";
     private const string InvalidEncryptedValue = "FC8337AF072BE5B1641501E1r8mLIhmIME1AV7UO9XmW9OLE";
 
     private static readonly object SsrConfig = new { security = new { checkOrigin = false } };
@@ -287,37 +283,11 @@ public partial class ServerIslandsTests(SiteHost sites)
         return ConformanceSite.ParseHtml(await File.ReadAllTextAsync(Path.Combine(site.DistPath, "client", "index.html")));
     }
 
-    private static Task<HttpResponseMessage> PostIslandAsync(ConformanceSite site, HttpContent body) =>
-        site.SendAsync(HttpMethod.Post, "/_server-islands/Island", body, ("Origin", site.BaseAddress.GetLeftPart(UriPartial.Authority)));
-
-    private static StringContent IslandBody(string? encryptedProps = null, string encryptedSlots = "") =>
-        new(
-            JsonSerializer.Serialize(new
-            {
-                encryptedComponentExport = Encrypt("default", "export:Island"),
-                encryptedProps = encryptedProps ?? Encrypt("{}", "props:Island"),
-                encryptedSlots,
-            }),
-            Encoding.UTF8);
-
     private static string EncryptedPropsInQuery(string html)
     {
         var match = IslandPropsParameter().Match(html);
         Assert.True(match.Success, "should include props in the query string");
         return match.Groups[1].Value;
-    }
-
-    private static string Encrypt(string plainText, string additionalData)
-    {
-        var iv = RandomNumberGenerator.GetBytes(12);
-        var data = Encoding.UTF8.GetBytes(plainText);
-        var cipherText = new byte[data.Length];
-        var tag = new byte[16];
-
-        using var aes = new AesGcm(Convert.FromBase64String(AstroKey), tag.Length);
-        aes.Encrypt(iv, data, cipherText, tag, Encoding.UTF8.GetBytes(additionalData));
-
-        return Convert.ToHexString(iv) + Convert.ToBase64String([.. cipherText, .. tag]);
     }
 
     [GeneratedRegex("""fetch\(["']\/_server-islands\/Island\?[^"']*p=([^&"']*)""")]

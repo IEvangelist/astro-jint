@@ -25,7 +25,8 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
 | `session-false.test.ts` | 4 | 4 | 0 | 0 | 0 | `Core\SessionFalseTests.cs` | Fixture `core-session-config` with the JSON config `session: false`. |
 | `session-tree-shake.test.ts` | 5 | 0 | 5 | 0 | 0 | `Core\SessionTreeShakeTests.cs` | Fixture `core-session-config`, shared with `session-false.test.ts`. |
 | `server-islands.test.ts` | 19 | 9 | 7 | 1 | 2 | `Core\ServerIslandsTests.cs` | Fixtures `core-server-islands` (`server-islands/ssr` without its content collection), `core-server-islands-content` (the collection, GAP-CORE-1), `core-server-islands-hybrid` and `core-server-islands-custom-fetch`; the class has one more test than upstream (the gap with a code-split build). |
-
+| `csp-server-islands.test.ts` | 5 | 4 | 0 | 0 | 1 | `Core\CspServerIslandsTests.cs` | Fixtures `core-server-islands` and `core-server-islands-hybrid` with the JSON config `security.csp: true`; helpers `Core\ServerIslandRequests.cs` and `Core\CspDigest.cs`. |
+| `csp.test.ts` | 8 | 7 | 1 | 0 | 0 | `Core\CspTests.cs` | Fixtures `core-csp` (the `kind` test is a JSON config variant), `core-csp-fonts` and `core-csp-adapter`. |
 ## Differences
 
 - `ssr-request.test.ts`: requests carry `Host: example.com` instead of the absolute URL that `app.render` receives; assets are served by the
@@ -96,6 +97,21 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
   `/fragment`, as upstream does twice, and also `/named-fragment`, the page the fixture has for it. The content collection of `ssr` is a
   fixture of its own, so that GAP-CORE-1 does not take the other tests with it; the extra test of the class requests the same page from a
   build with `codeSplitting` turned on for the SSR environment, and passes.
+- `csp-server-islands.test.ts`: the fixtures are the ones of `server-islands.test.ts` (`ssr` and `hybrid`) with `security.csp: true` as a
+  JSON override, and the POST of the island carries the origin of the site. `SSR` / `omits the islands HTML` also checks (not asserted
+  upstream) that the page answers with one `Content-Security-Policy` response header whose `script-src` holds the SHA-256 digest of
+  every inline script of the page: with an on-demand page Astro 7.3.8 sends the policy as a header and the digests are computed in the
+  engine. `Hybrid` / `build` reads the prerendered file through the host, which serves it unchanged. The `with no adapter` test is N/A.
+- `csp.test.ts`: seven tests build with no adapter and read `<meta http-equiv="Content-Security-Policy">` from the files of the output
+  directory; the port builds the same fixtures with this adapter (the pages stay prerendered, since no output is set) and requests each
+  page from the host, which serves the file (the engine does not take part, as the files are the same). The `csp` fixture has no
+  `react.astro`, `Text.jsx` or React integration, and `csp-adapter` has no `Text.jsx`: no test reads them. Upstream builds the fixture
+  once per test; the tests here share one build, and `granular directives via the kind option` is the one JSON config variant
+  (`scriptDirective` and `styleDirective`). `should return CSP header inside a hook` receives the routes' headers in the
+  adapter's `setRouteToHeaders()` hook upstream; this adapter writes the same map into `astro-jint.json` (`staticHeaders`, one entry per
+  prerendered page, with its file name) when its `staticHeaders` option is on, which the fixture sets, so it is adapted: the test
+  expects the four prerendered pages in that list (not the on-demand `/ssr`), each with a `Content-Security-Policy` header, and also
+  requests each of them: the host answers 200 with that header (not asserted upstream).
 
 ## Gaps
 
@@ -133,3 +149,5 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
   and expect Astro's `Cannot use server islands without an adapter.` build error, and its dev error page (`NoAdapterInstalledServerIslands`).
   Both are about a project that has no adapter, so there is no host and no request that could be made; the error is raised by Astro before
   this adapter or the host take part.
+- `csp-server-islands.test.ts` / `Hybrid` / `build (no adapter)`: builds the hybrid fixture with `adapter: undefined` and expects the
+  `NoAdapterInstalledServerIslands` error (it is in `server-islands.test.ts` as well). There is no adapter, host or request involved.
