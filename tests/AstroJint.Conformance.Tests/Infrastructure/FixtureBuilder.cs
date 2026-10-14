@@ -9,7 +9,8 @@ namespace AstroJint.Conformance;
 /// Builds the Astro projects under <c>tests/conformance/fixtures</c> with astro-adapter-jint, and rebuilds one when its
 /// sources, or the adapter, changed since its last build. Only <c>pnpm install</c> has to be run beforehand.
 /// A variant is a fixture built with other Astro config (the changes an upstream test gives to <c>loadFixture()</c>); each
-/// variant gets its own output folder.
+/// variant gets its own output folder. What <c>astro build</c> printed is kept next to that folder, as <c>dist.build.log</c>,
+/// so a test can look at the warnings of a build without the output folder holding anything the build did not write.
 /// </summary>
 internal static class FixtureBuilder
 {
@@ -30,6 +31,9 @@ internal static class FixtureBuilder
     /// <returns>The output folder that holds the build of the fixture.</returns>
     public static Task<string> EnsureBuiltAsync(string fixture, string overridesJson = NoOverrides) =>
         Builds.GetOrAdd($"{fixture}|{overridesJson}", _ => new Lazy<Task<string>>(() => BuildAsync(fixture, overridesJson))).Value;
+
+    /// <summary>Where the output of <c>astro build</c> is kept for the build that wrote <paramref name="dist"/>.</summary>
+    public static string BuildLogPath(string dist) => Path.TrimEndingDirectorySeparator(dist) + ".build.log";
 
     private static async Task<string> BuildAsync(string fixture, string overridesJson)
     {
@@ -77,6 +81,8 @@ internal static class FixtureBuilder
                 {
                     throw new InvalidOperationException($"'astro build' failed for the fixture '{fixture}' ({overridesJson}) with exit code {exitCode}:{Environment.NewLine}{output}");
                 }
+
+                await File.WriteAllTextAsync(BuildLogPath(dist), output);
             }
             finally
             {
@@ -130,6 +136,11 @@ internal static class FixtureBuilder
         {
             foreach (var file in Directory.EnumerateFiles(current))
             {
+                if (IsOutput(Path.GetFileName(file)))
+                {
+                    continue;
+                }
+
                 var modified = File.GetLastWriteTimeUtc(file);
                 if (modified > newest)
                 {
@@ -166,6 +177,8 @@ internal static class FixtureBuilder
 
         start.Environment["ASTRO_TELEMETRY_DISABLED"] = "1";
         start.Environment["CI"] = "1";
+        // The output is kept in a log file, and CI makes Astro color it.
+        start.Environment["NO_COLOR"] = "1";
         foreach (var (name, value) in environment)
         {
             start.Environment[name] = value;

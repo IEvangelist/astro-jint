@@ -6,6 +6,11 @@ import type { AstroConfig, AstroIntegration, IntegrationResolvedRoute } from 'as
 import { passthroughImageService } from 'astro/config';
 import { MANIFEST_FILE_NAME, MANIFEST_VERSION, type AstroJintManifest, type AstroJintStaticHeaders } from './manifest.js';
 import { collectStaticHeaders } from './static-headers.js';
+import {
+  describeUnresolvableImports,
+  reportUnresolvableImports,
+  type UnresolvableImport,
+} from './server-imports.js';
 
 export type { AstroJintAllowedDomain, AstroJintManifest, AstroJintRoute, AstroJintStaticHeaders } from './manifest.js';
 
@@ -43,6 +48,7 @@ export default function jint(options: JintAdapterOptions = {}): AstroIntegration
   let config: AstroConfig | undefined;
   let routes: IntegrationResolvedRoute[] = [];
   let staticHeaders: AstroJintStaticHeaders[] = [];
+  let unresolvableImports: UnresolvableImport[] = [];
 
   return {
     name: ADAPTER_NAME,
@@ -92,6 +98,8 @@ export default function jint(options: JintAdapterOptions = {}): AstroIntegration
               define: { 'process.env.NODE_ENV': '"production"' },
               // One self-contained module with no node:* imports, which is what Jint can evaluate.
               ssr: { noExternal: true, target: 'webworker' },
+              // What is still imported from outside of that module is reported when the build is done.
+              plugins: [reportUnresolvableImports((found) => unresolvableImports.push(...found))],
               ...(options.minify && {
                 // Astro hard-codes `build.minify: false` for the server build, so the only way to
                 // minify it is through the output options of the ssr environment.
@@ -124,6 +132,10 @@ export default function jint(options: JintAdapterOptions = {}): AstroIntegration
         routes = resolved;
       },
 
+      'astro:build:start': () => {
+        unresolvableImports = [];
+      },
+
       'astro:build:generated': ({ dir, routeToHeaders }) => {
         // Astro only fills the map when the adapter has `staticHeaders` on, and the policy of a page
         // that is not under `security.csp` is not Astro's to replay.
@@ -144,6 +156,10 @@ export default function jint(options: JintAdapterOptions = {}): AstroIntegration
         const prerendered = manifest.routes.filter((r) => r.prerender && r.origin === 'project').length;
         const onDemand = manifest.routes.filter((r) => !r.prerender && r.origin === 'project').length;
         logger.info(`${MANIFEST_FILE_NAME}: ${prerendered} prerendered and ${onDemand} on-demand routes`);
+
+        for (const message of describeUnresolvableImports(unresolvableImports, manifest.server)) {
+          logger.warn(message);
+        }
       },
     },
   };

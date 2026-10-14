@@ -47,6 +47,10 @@ public sealed class ConformanceSite : IAsyncDisposable
 
     /// <summary>Whether the build wrote the file, addressed relative to the output folder, as in <c>client/two/index.html</c>.</summary>
     public bool PathExists(string relativePath) => File.Exists(Path.Combine(DistPath, relativePath));
+
+    /// <summary>What <c>astro build</c> printed for this build, the warnings of Astro and of the adapter included.</summary>
+    public string BuildLog => File.ReadAllText(FixtureBuilder.BuildLogPath(DistPath));
+
     public Uri BaseAddress { get; }
 
     public HttpClient Client { get; }

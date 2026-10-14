@@ -1,4 +1,5 @@
 using System.Net;
+using Microsoft.Extensions.Logging;
 
 namespace AstroJint.Conformance.Netlify;
 
@@ -6,7 +7,7 @@ namespace AstroJint.Conformance.Netlify;
 /// Port of <c>packages/integrations/netlify/test/functions/edge-middleware.test.ts</c>, on the consolidated
 /// <c>netlify-functions</c> fixture (the <c>middleware</c> fixture of upstream without its <c>node:https</c> import and its
 /// image page). The import has a fixture of its own, <c>netlify-node-builtin</c>: the build-time test runs on it too, as
-/// upstream only builds the fixture with the import, and the last test requests it.
+/// upstream only builds the fixture with the import, and the test about the import requests it.
 /// <para>
 /// Only the <c>middlewareMode: classic</c> tests apply: a Netlify edge function is a platform feature, and the middleware of
 /// this host always runs in the host's request pipeline, so the two <c>middlewareMode: edge</c> tests (one is skipped
@@ -15,8 +16,10 @@ namespace AstroJint.Conformance.Netlify;
 /// middleware shows its effect on a page that is rendered per request.
 /// </para>
 /// <para>
-/// The last test is not an upstream <c>it</c>: the upstream fixture imports <c>node:https</c> in its middleware (it
-/// builds, and the file of the prerendered page is checked), which a request to this host cannot survive, see GAP-NETLIFY-1.
+/// The last two tests are not upstream <c>it</c>s. The upstream fixture imports <c>node:https</c> in its middleware: it
+/// builds, and the file of the prerendered page is checked (the test above, run on both fixtures). A request to this host
+/// cannot survive that import, because the host does not load Node built-ins: the build warns about it, see
+/// <c>docs/conformance/netlify.md</c>.
 /// </para>
 /// </summary>
 [Trait("Upstream", "netlify/functions/edge-middleware.test.ts")]
@@ -55,18 +58,26 @@ public class EdgeMiddlewareTests(SiteHost sites)
         Assert.Contains("<title>Middleware</title>", await response.ReadTextAsync());
     }
 
-    [Fact(
-        DisplayName = "middlewareMode: classic: middleware can import a node:-prefixed built-in module",
-        Skip = "GAP-NETLIFY-1: a static import of a Node built-in stays in the server bundle and the module loader of the host refuses it, so no engine starts and every request answers 500")]
-    public async Task Classic_Middleware_CanImportNodePrefixedBuiltIns()
+    [Fact(DisplayName = "middlewareMode: classic: middleware that imports a node:-prefixed built-in module: the build warns that the host cannot load it, and on-demand routes answer 500")]
+    public async Task Classic_Middleware_ImportOfNodePrefixedBuiltInIsReportedByTheBuild()
     {
         var site = await sites.GetAsync("netlify-node-builtin");
 
-        using var response = await site.GetAsync("/");
-        var page = await response.ReadHtmlAsync();
+        Assert.Contains("[astro-adapter-jint] server/entry.mjs imports 'node:https', which the host cannot load", site.BuildLog);
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("Middleware", page.Title);
-        Assert.Equal("true", page.QuerySelector("#node-prefixed-import")?.TextContent);
+        using var response = await site.GetAsync("/");
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Contains(site.Logs, entry =>
+            entry.Level == LogLevel.Error
+            && entry.Exception?.ToString().Contains("Only relative imports of files in the server bundle are supported in module 'entry.mjs': 'node:https'", StringComparison.Ordinal) == true);
+    }
+
+    [Fact(DisplayName = "middlewareMode: classic: a build that imports nothing from outside of the server bundle has no such warning")]
+    public async Task Classic_BuildWithoutImportsFromOutsideOfTheBundleHasNoWarning()
+    {
+        var site = await sites.GetAsync(Fixture);
+
+        Assert.Contains("[astro-adapter-jint]", site.BuildLog);
+        Assert.DoesNotContain("which the host cannot load", site.BuildLog);
     }
 }
