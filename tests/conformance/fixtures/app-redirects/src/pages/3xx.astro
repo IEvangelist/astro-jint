@@ -1,0 +1,7 @@
+---
+// The custom redirect page of experimental.redirectPage, which a later Astro version than the installed 7.3.8 renders as the
+// body of a redirect (here it is an ordinary page at /3xx). Nothing may render it for a redirect: the redirects of the host
+// never carry a body.
+throw new Error('3xx.astro must not be rendered for a redirect');
+---
+<p>Moved</p>
