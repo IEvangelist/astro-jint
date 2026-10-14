@@ -1,2 +1,8 @@
 <Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AstroJint.AspNetCore/AstroJint.AspNetCore.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AstroJint.AspNetCore.Tests/AstroJint.AspNetCore.Tests.csproj" />
+  </Folder>
 </Solution>

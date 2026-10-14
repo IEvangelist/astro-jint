@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>AstroJint.AspNetCore</RootNamespace>
+    <Description>Hosts the on-demand part of an Astro site inside ASP.NET Core by running the Astro server bundle in Jint.</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Jint" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="AstroJint.AspNetCore.Tests" />
+  </ItemGroup>
+
+</Project>
