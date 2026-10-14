@@ -223,10 +223,15 @@ public class AstroHostTests
     [Fact]
     public async Task Requests_WaitForAFreeEngine()
     {
-        await using var site = await TestSite.StartAsync(configure: options => options.PoolSize = 1);
+        // Date.now() in a busy loop allocates about 128 MiB per 500 ms, so the memory budget would end the spin early.
+        await using var site = await TestSite.StartAsync(configure: options =>
+        {
+            options.PoolSize = 1;
+            options.MemoryLimitBytes = null;
+        });
 
         var first = site.Client.GetAsync("/spin?ms=600");
-        await Task.Delay(100);
+        await WaitUntil(() => site.Astro.Pool.Reserved == 1);
         var second = site.Client.GetAsync("/count");
 
         using var firstResponse = await first;
