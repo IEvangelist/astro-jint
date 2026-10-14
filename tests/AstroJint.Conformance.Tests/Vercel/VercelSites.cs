@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace AstroJint.Conformance.Vercel;
 
 /// <summary>
@@ -46,5 +48,14 @@ internal static class VercelSites
 
         Assert.NotNull(href);
         return href;
+    }
+
+    /// <summary>Whether the manifest of the build (<c>astro-jint.json</c>) lists the route, as a prerendered one or as one rendered per request.</summary>
+    public static bool HasRoute(this ConformanceSite site, string route, bool prerender)
+    {
+        using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(site.DistPath, "astro-jint.json")));
+
+        return manifest.RootElement.GetProperty("routes").EnumerateArray().Any(entry =>
+            entry.GetProperty("route").GetString() == route && entry.GetProperty("prerender").GetBoolean() == prerender);
     }
 }
