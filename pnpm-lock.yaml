@@ -35,7 +35,52 @@ importers:
         specifier: ^7.3.6
         version: 7.3.6(@types/node@24.19.1)(yaml@2.9.1)
 
+  tests/conformance/fixtures/bad-urls:
+    dependencies:
+      astro:
+        specifier: ^7.3.6
+        version: 7.3.6(@types/node@24.19.1)(yaml@2.9.1)
+      astro-adapter-jint:
+        specifier: workspace:*
+        version: link:../../../../packages/astro-adapter-jint
+
+  tests/conformance/fixtures/encoded:
+    dependencies:
+      astro:
+        specifier: ^7.3.6
+        version: 7.3.6(@types/node@24.19.1)(yaml@2.9.1)
+      astro-adapter-jint:
+        specifier: workspace:*
+        version: link:../../../../packages/astro-adapter-jint
+
+  tests/conformance/fixtures/headers:
+    dependencies:
+      astro:
+        specifier: ^7.3.6
+        version: 7.3.6(@types/node@24.19.1)(yaml@2.9.1)
+      astro-adapter-jint:
+        specifier: workspace:*
+        version: link:../../../../packages/astro-adapter-jint
+
   tests/conformance/fixtures/jint-host-context:
+    dependencies:
+      astro:
+        specifier: ^7.3.6
+        version: 7.3.6(@types/node@24.19.1)(yaml@2.9.1)
+      astro-adapter-jint:
+        specifier: workspace:*
+        version: link:../../../../packages/astro-adapter-jint
+
+  tests/conformance/fixtures/locals:
+    dependencies:
+      astro:
+        specifier: ^7.3.6
+        version: 7.3.6(@types/node@24.19.1)(yaml@2.9.1)
+      astro-adapter-jint:
+        specifier: workspace:*
+        version: link:../../../../packages/astro-adapter-jint
+
+  tests/conformance/fixtures/well-known-locations:
     dependencies:
       astro:
         specifier: ^7.3.6

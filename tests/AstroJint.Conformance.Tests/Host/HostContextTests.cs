@@ -33,7 +33,7 @@ public class HostContextTests(SiteHost sites)
     [Fact]
     public async Task Locals_AreProducedByTheHostForEveryRequest()
     {
-        var site = await sites.GetAsync(Fixture, "locals", options =>
+        var site = await sites.GetAsync(Fixture, variant: "locals", configure: options =>
             options.LocalsFactory = context => new { user = "ada", path = context.Request.Path.Value, roles = new[] { "admin", "editor" } });
 
         var first = await site.GetHtmlAsync("/locals");
@@ -59,7 +59,7 @@ public class HostContextTests(SiteHost sites)
     [Fact]
     public async Task Env_SecretsComeFromTheOptionsOfTheHostAtRuntime()
     {
-        var site = await sites.GetAsync(Fixture, "env", options => options.Env["API_TOKEN"] = "s3cret");
+        var site = await sites.GetAsync(Fixture, variant: "env", configure: options => options.Env["API_TOKEN"] = "s3cret");
 
         var html = await site.GetHtmlAsync("/env");
 
@@ -70,7 +70,7 @@ public class HostContextTests(SiteHost sites)
     [Fact]
     public async Task Env_PublicVariablesAreInlinedAtBuildTime()
     {
-        var site = await sites.GetAsync(Fixture, "env-public", options => options.Env["GREETING"] = "hi there");
+        var site = await sites.GetAsync(Fixture, variant: "env-public", configure: options => options.Env["GREETING"] = "hi there");
 
         var html = await site.GetHtmlAsync("/env");
 

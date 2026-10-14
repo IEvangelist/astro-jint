@@ -50,15 +50,17 @@ public sealed class ConformanceSite : IAsyncDisposable
 
     /// <summary>Builds the fixture when needed, then starts a host for it. The pool has two engines unless configured.</summary>
     /// <param name="fixture">Folder name below <c>tests/conformance/fixtures</c>.</param>
+    /// <param name="config">Changes to the Astro config of the fixture, like the inline config an upstream test passes to <c>loadFixture()</c>.</param>
     /// <param name="configure">Adjusts the options of the host.</param>
     /// <param name="configureApp">Adds middleware and endpoints before the Astro pipeline.</param>
     public static async Task<ConformanceSite> StartAsync(
         string fixture,
+        object? config = null,
         Action<AstroOptions>? configure = null,
         Action<WebApplication>? configureApp = null,
         Action<IServiceCollection>? configureServices = null)
     {
-        var dist = await FixtureBuilder.EnsureBuiltAsync(fixture);
+        var dist = await FixtureBuilder.EnsureBuiltAsync(fixture, SiteHost.Serialize(config));
 
         var logs = new ListLoggerProvider();
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
@@ -118,6 +120,14 @@ public sealed class ConformanceSite : IAsyncDisposable
 
         return Client.SendAsync(request);
     }
+
+    /// <summary>
+    /// Sends the request over a plain socket, so the request target reaches the host exactly as written; <see cref="HttpClient"/>
+    /// would normalise backslashes, invalid escapes and dot segments.
+    /// </summary>
+    /// <param name="target">The request target, such as <c>/a/../b?c=d</c>.</param>
+    public Task<RawResponse> SendRawAsync(string target, string method = "GET", byte[]? body = null, params (string Name, string Value)[] headers) =>
+        RawHttp.SendAsync(BaseAddress, RawHttp.BuildRequest(BaseAddress, method, target, headers, body));
 
     public async ValueTask DisposeAsync()
     {

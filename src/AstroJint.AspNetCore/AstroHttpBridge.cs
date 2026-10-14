@@ -69,7 +69,9 @@ internal static class AstroHttpBridge
         var body = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
 
         var headers = new List<KeyValuePair<string, StringValues>>();
-        foreach (var header in response.Headers.Concat(response.Content.Headers))
+        // The non-validated view yields values as they were set; the typed view re-serialises them (Content-Type
+        // 'text/plain;charset=utf-8' would come out as 'text/plain; charset=utf-8').
+        foreach (var header in response.Headers.NonValidated.Concat(response.Content.Headers.NonValidated))
         {
             if (!HopByHopHeaders.Contains(header.Key))
             {

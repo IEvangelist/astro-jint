@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace AstroJint.Conformance;
@@ -7,21 +8,26 @@ namespace AstroJint.Conformance;
 /// <summary>
 /// Builds the Astro projects under <c>tests/conformance/fixtures</c> with astro-adapter-jint, and rebuilds one when its
 /// sources, or the adapter, changed since its last build. Only <c>pnpm install</c> has to be run beforehand.
+/// A variant is a fixture built with other Astro config (the changes an upstream test gives to <c>loadFixture()</c>); each
+/// variant gets its own output folder.
 /// </summary>
 internal static class FixtureBuilder
 {
     private const string ManifestFile = "astro-jint.json";
+    private const string NoOverrides = "{}";
 
-    private static readonly string[] SkippedFolders = ["node_modules", "dist", ".astro"];
     private static readonly SemaphoreSlim BuildSlots = new(Math.Max(2, Environment.ProcessorCount / 4));
     private static readonly ConcurrentDictionary<string, Lazy<Task<string>>> Builds = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> FixtureLocks = new(StringComparer.Ordinal);
     private static readonly Lazy<Task> Adapter = new(BuildAdapterAsync);
 
-    /// <returns>The <c>dist</c> folder that holds the build of the fixture.</returns>
-    public static Task<string> EnsureBuiltAsync(string fixture) =>
-        Builds.GetOrAdd(fixture, name => new Lazy<Task<string>>(() => BuildAsync(name))).Value;
+    /// <param name="fixture">Folder name below <c>tests/conformance/fixtures</c>.</param>
+    /// <param name="overridesJson">Changes to the Astro config of the fixture, as a JSON object.</param>
+    /// <returns>The output folder that holds the build of the fixture.</returns>
+    public static Task<string> EnsureBuiltAsync(string fixture, string overridesJson = NoOverrides) =>
+        Builds.GetOrAdd($"{fixture}|{overridesJson}", _ => new Lazy<Task<string>>(() => BuildAsync(fixture, overridesJson))).Value;
 
-    private static async Task<string> BuildAsync(string fixture)
+    private static async Task<string> BuildAsync(string fixture, string overridesJson)
     {
         var root = Path.Combine(Repository.FixturesRoot, fixture);
         if (!File.Exists(Path.Combine(root, "package.json")))
@@ -31,33 +37,51 @@ internal static class FixtureBuilder
 
         await Adapter.Value;
 
-        var dist = Path.Combine(root, "dist");
+        var outDir = overridesJson == NoOverrides
+            ? "dist"
+            : "dist-" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(overridesJson)))[..10];
+        var dist = Path.Combine(root, outDir);
         var manifest = Path.Combine(dist, ManifestFile);
-        var sources = Newest(root);
-        var adapter = Newest(Path.Combine(Repository.AdapterRoot, "dist"));
-        if (File.Exists(manifest) && File.GetLastWriteTimeUtc(manifest) > (sources > adapter ? sources : adapter))
-        {
-            return dist;
-        }
 
-        var astro = Path.Combine(root, "node_modules", "astro", "bin", "astro.mjs");
-        if (!File.Exists(astro))
-        {
-            throw new InvalidOperationException($"The dependencies of the fixture '{fixture}' are not installed. Run 'pnpm install' in '{Repository.Root}'.");
-        }
-
-        await BuildSlots.WaitAsync();
+        // Builds of one fixture share its .astro and node_modules/.astro folders, so they must not overlap.
+        var fixtureLock = FixtureLocks.GetOrAdd(fixture, _ => new SemaphoreSlim(1));
+        await fixtureLock.WaitAsync();
         try
         {
-            var (exitCode, output) = await RunAsync("node", [astro, "build"], root);
-            if (exitCode != 0)
+            var inputs = Max(Newest(root), Newest(Repository.SupportRoot), Newest(Path.Combine(Repository.AdapterRoot, "dist")));
+            if (File.Exists(manifest) && File.GetLastWriteTimeUtc(manifest) > inputs)
             {
-                throw new InvalidOperationException($"'astro build' failed for the fixture '{fixture}' with exit code {exitCode}:{Environment.NewLine}{output}");
+                return dist;
+            }
+
+            var astro = Path.Combine(root, "node_modules", "astro", "bin", "astro.mjs");
+            if (!File.Exists(astro))
+            {
+                throw new InvalidOperationException($"The dependencies of the fixture '{fixture}' are not installed. Run 'pnpm install' in '{Repository.Root}'.");
+            }
+
+            await BuildSlots.WaitAsync();
+            try
+            {
+                var environment = new Dictionary<string, string>
+                {
+                    ["CONFORMANCE_OVERRIDES"] = overridesJson,
+                    ["CONFORMANCE_OUT_DIR"] = outDir,
+                };
+                var (exitCode, output) = await RunAsync("node", [astro, "build"], root, environment);
+                if (exitCode != 0)
+                {
+                    throw new InvalidOperationException($"'astro build' failed for the fixture '{fixture}' ({overridesJson}) with exit code {exitCode}:{Environment.NewLine}{output}");
+                }
+            }
+            finally
+            {
+                BuildSlots.Release();
             }
         }
         finally
         {
-            BuildSlots.Release();
+            fixtureLock.Release();
         }
 
         if (!File.Exists(manifest))
@@ -76,12 +100,17 @@ internal static class FixtureBuilder
             return;
         }
 
-        var (exitCode, output) = await RunAsync(OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm", ["--filter", "astro-adapter-jint", "build"], Repository.Root);
+        var (exitCode, output) = await RunAsync(OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm", ["--filter", "astro-adapter-jint", "build"], Repository.Root, []);
         if (exitCode != 0)
         {
             throw new InvalidOperationException($"Building astro-adapter-jint failed with exit code {exitCode}:{Environment.NewLine}{output}");
         }
     }
+
+    private static DateTime Max(params DateTime[] times) => times.Max();
+
+    private static bool IsOutput(string folder) =>
+        folder is "node_modules" or ".astro" || folder.StartsWith("dist", StringComparison.Ordinal);
 
     private static DateTime Newest(string folder)
     {
@@ -106,7 +135,7 @@ internal static class FixtureBuilder
 
             foreach (var child in Directory.EnumerateDirectories(current))
             {
-                if (Array.IndexOf(SkippedFolders, Path.GetFileName(child)) < 0)
+                if (!IsOutput(Path.GetFileName(child)))
                 {
                     pending.Push(child);
                 }
@@ -116,7 +145,7 @@ internal static class FixtureBuilder
         return newest;
     }
 
-    private static async Task<(int ExitCode, string Output)> RunAsync(string fileName, string[] arguments, string workingDirectory)
+    private static async Task<(int ExitCode, string Output)> RunAsync(string fileName, string[] arguments, string workingDirectory, Dictionary<string, string> environment)
     {
         var start = new ProcessStartInfo(fileName)
         {
@@ -133,6 +162,10 @@ internal static class FixtureBuilder
 
         start.Environment["ASTRO_TELEMETRY_DISABLED"] = "1";
         start.Environment["CI"] = "1";
+        foreach (var (name, value) in environment)
+        {
+            start.Environment[name] = value;
+        }
 
         var output = new StringBuilder();
         using var process = new Process { StartInfo = start };

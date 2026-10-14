@@ -190,6 +190,17 @@ public class AstroHttpBridgeTests
     }
 
     [Fact]
+    public async Task ReadResponse_KeepsHeaderValuesExactlyAsTheScriptSetThem()
+    {
+        using var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent([]) };
+        response.Content.Headers.TryAddWithoutValidation("Content-Type", "text/plain;charset=utf-8");
+
+        var result = await AstroHttpBridge.ReadResponseAsync(response, CancellationToken.None);
+
+        Assert.Equal("text/plain;charset=utf-8", result.Headers.Single(h => h.Key == "Content-Type").Value.ToString());
+    }
+
+    [Fact]
     public async Task ReadResponse_DropsConnectionLevelHeaders()
     {
         using var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent([1, 2, 3]) };

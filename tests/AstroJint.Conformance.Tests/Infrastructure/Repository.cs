@@ -7,6 +7,7 @@ internal static class Repository
 
     public static string FixturesRoot { get; } = Path.Combine(Root, "tests", "conformance", "fixtures");
 
+    public static string SupportRoot { get; } = Path.Combine(Root, "tests", "conformance", "support");
     public static string AdapterRoot { get; } = Path.Combine(Root, "packages", "astro-adapter-jint");
 
     private static string FindRoot()
