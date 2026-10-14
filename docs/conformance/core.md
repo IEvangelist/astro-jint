@@ -24,6 +24,7 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
 | `sessions.test.ts` | 8 | 8 | 0 | 0 | 0 | `Core\SessionsTests.cs` | Fixture `core-sessions` (`sessions`); 3 of the `it`s are the tests of `Node\SessionsTests` and are not repeated. |
 | `session-false.test.ts` | 4 | 4 | 0 | 0 | 0 | `Core\SessionFalseTests.cs` | Fixture `core-session-config` with the JSON config `session: false`. |
 | `session-tree-shake.test.ts` | 5 | 0 | 5 | 0 | 0 | `Core\SessionTreeShakeTests.cs` | Fixture `core-session-config`, shared with `session-false.test.ts`. |
+| `server-islands.test.ts` | 19 | 9 | 7 | 1 | 2 | `Core\ServerIslandsTests.cs` | Fixtures `core-server-islands` (`server-islands/ssr` without its content collection), `core-server-islands-content` (the collection, GAP-CORE-1), `core-server-islands-hybrid` and `core-server-islands-custom-fetch`; the class has one more test than upstream (the gap with a code-split build). |
 
 ## Differences
 
@@ -85,10 +86,32 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
   bundle has neither unstorage nor `AstroSession` (the same Astro mechanism, `provider-disabled`, applies to both). In
   `session runtime is retained when a driver is configured` the driver that the adapter wires stands in for `driver: 'fs'`; the tests check
   that `context.session` exists and that both stay in the bundle.
+- `server-islands.test.ts`: `app.render(new Request('http://example.com/...'))` is an HTTP request. A `POST` body is the string that
+  `JSON.stringify` gives upstream, so it travels as `text/plain` like the body of an upstream `Request`, and `origin: http://example.com`
+  is the origin of the site, because the host builds the request URL from its `Host` header. `encryptString()` (WebCrypto) is `AesGcm`
+  with the same wire format and the `ASTRO_KEY` of the upstream tests, which the fixture sets in its Astro config because the build
+  runs in another process; the requests that must answer 200 show that the engine decrypts with that key. The five `dev` tests, the
+  `custom fetch handler` test and the last `Hybrid mode` test run against the production build (`src/fetch.ts` is installed as the fetch
+  handler by Astro's production entry; the endpoint of a static site answers once built). `supports fragments with named slots` requests
+  `/fragment`, as upstream does twice, and also `/named-fragment`, the page the fixture has for it. The content collection of `ssr` is a
+  fixture of its own, so that GAP-CORE-1 does not take the other tests with it; the extra test of the class requests the same page from a
+  build with `codeSplitting` turned on for the SSR environment, and passes.
 
 ## Gaps
 
-None so far.
+- `GAP-CORE-1`: a site that renders a content collection entry (`render(entry)` of a Markdown or MDX entry) builds without errors, but
+  every request to it answers 500. `server/entry.mjs` still holds `deserializeManifest("@@ASTRO_MANIFEST_REPLACE@@")`, so the engine
+  fails while it is created (`TypeError: Invalid URL: undefined`, from `new URL(serializedManifest.rootDir)`) and the host logs an
+  unhandled `PromiseRejectedException`. Skipped test: `ServerIslandsTests.ContentCollectionEntry_IslandInSlot_IsInsideTheWrapper`
+  (fixture `core-server-islands-content`). Suspected area: the adapter sets `ssr.target: 'webworker'`, for which Vite 8 builds the SSR
+  environment with `codeSplitting: false` when it has one input, so `entry.mjs` holds every module, among them the `?astroPropagatedAssets`
+  module of the entry (placeholder `@@ASTRO-LINKS@@`) and `virtual:astro:manifest` (placeholder `@@ASTRO_MANIFEST_REPLACE@@`). Astro injects
+  both with `mutate(fileName, code)`, and `contentAssetsBuildPostHook` starts from the original `chunk.code`, so its result replaces the
+  manifest that `manifestBuildPostHook` injected into the same chunk (Astro 7.3.8 and its main branch). Reproduce: build the fixture and
+  search `dist/server/entry.mjs` for the placeholder, or run the test without its `Skip`. With
+  `vite.environments.ssr.build.rolldownOptions.output.codeSplitting: true` (the JSON config of the extra test of the class, which passes)
+  the manifest is injected and the same page renders; the host already loads the `chunks/` modules that split build needs. It is
+  not a fix that a fixture can make, so the lead decides: for example setting that option in the adapter's `astro:config:setup`.
 
 ## Not applicable
 
@@ -106,3 +129,7 @@ None so far.
   emitted by the Tailwind v4 Vite plugin from disk. It checks Vite/Tailwind output; nothing runs in the engine and the host only serves the file.
 - `middleware.test.ts` / `Middleware HMR` (4 tests): they edit `src/middleware.js` and the modules it imports while the dev server runs and
   count executions through `x-test-executed` headers. Hot module replacement exists only in the dev server.
+- `server-islands.test.ts` / `with no adapter` / `Errors during the build` and `Errors during dev`: build the fixture with `adapter: undefined`
+  and expect Astro's `Cannot use server islands without an adapter.` build error, and its dev error page (`NoAdapterInstalledServerIslands`).
+  Both are about a project that has no adapter, so there is no host and no request that could be made; the error is raised by Astro before
+  this adapter or the host take part.

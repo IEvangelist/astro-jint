@@ -1,0 +1,13 @@
+{
+  "name": "conformance-core-server-islands",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "dependencies": {
+    "@astrojs/mdx": "^8.0.3",
+    "@astrojs/svelte": "^9.0.1",
+    "astro": "^7.3.6",
+    "astro-adapter-jint": "workspace:*",
+    "svelte": "^5.57.1"
+  }
+}
