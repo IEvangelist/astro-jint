@@ -20,4 +20,7 @@ internal static class CfPages
 
     /// <summary>Assets in <c>/_custom/</c> instead of <c>/_astro/</c>.</summary>
     public static readonly object CustomAssets = new { build = new { assets = "_custom" } };
+
+    /// <summary>The cache provider reports whether its <c>onRequest</c> is given a <c>waitUntil</c> function.</summary>
+    public static readonly object WaitUntilProbe = new { cache = new { provider = new { config = new { waitUntilProbe = true } } } };
 }
