@@ -35,6 +35,9 @@ internal sealed class AstroManifest
     /// <summary><c>security.allowedDomains</c> from the Astro config. When it has entries, only a matching <c>Host</c> is trusted.</summary>
     public IReadOnlyList<AstroAllowedDomain> AllowedDomains { get; init; } = [];
 
+    /// <summary>Response headers that Astro rendered for prerendered pages. They are added when a page's file is served.</summary>
+    public IReadOnlyList<AstroStaticHeaders> StaticHeaders { get; init; } = [];
+
     public IReadOnlyList<AstroManifestRoute> Routes { get; init; } = [];
 
     public static AstroManifest Load(string distPath)
@@ -79,4 +82,13 @@ internal sealed class AstroManifestRoute
     public bool Prerender { get; init; }
 
     public string Origin { get; init; } = "";
+}
+
+/// <summary>The response headers that go with one prerendered file.</summary>
+internal sealed class AstroStaticHeaders
+{
+    /// <summary>The file, relative to the client folder, using <c>/</c> as the separator.</summary>
+    public string File { get; init; } = "";
+
+    public IReadOnlyDictionary<string, string> Headers { get; init; } = new Dictionary<string, string>();
 }

@@ -24,13 +24,14 @@ internal readonly record struct StaticFileMatch(StaticFileMatchKind Kind, string
 internal sealed class AstroStaticFileResolver
 {
     private readonly HashSet<string> _files;
+    private readonly Dictionary<string, IReadOnlyDictionary<string, string>> _headers = new(StringComparer.Ordinal);
     private readonly string _base;
     private readonly string _assetsPrefix;
     private readonly string _trailingSlash;
     private readonly string _buildFormat;
 
     /// <param name="files">Paths relative to the client folder, using <c>/</c> as the separator.</param>
-    /// <param name="manifest">The Astro build manifest, which carries <c>base</c>, <c>trailingSlash</c>, <c>build.format</c> and the assets folder.</param>
+    /// <param name="manifest">The Astro build manifest, which carries <c>base</c>, <c>trailingSlash</c>, <c>build.format</c>, the assets folder and the headers of prerendered pages.</param>
     public AstroStaticFileResolver(IEnumerable<string> files, AstroManifest manifest)
     {
         _files = new HashSet<string>(files.Where(IsServable), StringComparer.Ordinal);
@@ -38,9 +39,18 @@ internal sealed class AstroStaticFileResolver
         _assetsPrefix = manifest.AssetsDir.Trim('/') + "/";
         _trailingSlash = manifest.TrailingSlash;
         _buildFormat = manifest.BuildFormat;
+
+        foreach (var entry in manifest.StaticHeaders)
+        {
+            _headers[entry.File] = entry.Headers;
+        }
     }
 
     public int Count => _files.Count;
+
+    /// <summary>The response headers that Astro rendered for a prerendered file, such as its <c>Content-Security-Policy</c>.</summary>
+    /// <param name="relativePath">A path relative to the client folder, as in <see cref="StaticFileMatch.Path"/>.</param>
+    public IReadOnlyDictionary<string, string>? GetHeaders(string relativePath) => _headers.GetValueOrDefault(relativePath);
 
     public static AstroStaticFileResolver FromDirectory(string clientRoot, AstroManifest manifest)
     {

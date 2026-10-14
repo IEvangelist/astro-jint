@@ -4,9 +4,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { AstroConfig, AstroIntegration, IntegrationResolvedRoute } from 'astro';
 import { passthroughImageService } from 'astro/config';
-import { MANIFEST_FILE_NAME, MANIFEST_VERSION, type AstroJintManifest } from './manifest.js';
+import { MANIFEST_FILE_NAME, MANIFEST_VERSION, type AstroJintManifest, type AstroJintStaticHeaders } from './manifest.js';
+import { collectStaticHeaders } from './static-headers.js';
 
-export type { AstroJintAllowedDomain, AstroJintManifest, AstroJintRoute } from './manifest.js';
+export type { AstroJintAllowedDomain, AstroJintManifest, AstroJintRoute, AstroJintStaticHeaders } from './manifest.js';
 
 const ADAPTER_NAME = 'astro-adapter-jint';
 const SHARP_SERVICE_ENTRYPOINT = 'astro/assets/services/sharp';
@@ -24,6 +25,14 @@ export interface JintAdapterOptions {
    * @default false
    */
   minify?: boolean;
+
+  /**
+   * Send the `Content-Security-Policy` header with prerendered pages instead of a `<meta>` tag, like the
+   * `staticHeaders` option of the official adapters. A header can carry directives that a `<meta>` tag
+   * cannot (`frame-ancestors`, `report-uri`, `sandbox`). It only applies when `security.csp` is set.
+   * @default false
+   */
+  staticHeaders?: boolean;
 }
 
 /**
@@ -33,6 +42,7 @@ export interface JintAdapterOptions {
 export default function jint(options: JintAdapterOptions = {}): AstroIntegration {
   let config: AstroConfig | undefined;
   let routes: IntegrationResolvedRoute[] = [];
+  let staticHeaders: AstroJintStaticHeaders[] = [];
 
   return {
     name: ADAPTER_NAME,
@@ -98,7 +108,7 @@ export default function jint(options: JintAdapterOptions = {}): AstroIntegration
           name: ADAPTER_NAME,
           entrypointResolution: 'auto',
           serverEntrypoint: fileURLToPath(new URL('./server.js', import.meta.url)),
-          adapterFeatures: { buildOutput: 'server' },
+          adapterFeatures: { buildOutput: 'server', staticHeaders: options.staticHeaders ?? false },
           supportedAstroFeatures: {
             staticOutput: 'stable',
             hybridOutput: 'stable',
@@ -114,12 +124,20 @@ export default function jint(options: JintAdapterOptions = {}): AstroIntegration
         routes = resolved;
       },
 
+      'astro:build:generated': ({ dir, routeToHeaders }) => {
+        // Astro only fills the map when the adapter has `staticHeaders` on, and the policy of a page
+        // that is not under `security.csp` is not Astro's to replay.
+        if (config?.security.csp) {
+          staticHeaders = collectStaticHeaders(routeToHeaders, fileURLToPath(dir));
+        }
+      },
+
       'astro:build:done': async ({ logger }) => {
         if (!config) {
           throw new Error(`${ADAPTER_NAME}: the Astro config was not resolved before the build finished.`);
         }
 
-        const manifest = createManifest(config, routes);
+        const manifest = createManifest(config, routes, staticHeaders);
         const outDir = fileURLToPath(config.outDir);
         await writeFile(path.join(outDir, MANIFEST_FILE_NAME), `${JSON.stringify(manifest, null, 2)}\n`);
 
@@ -131,7 +149,11 @@ export default function jint(options: JintAdapterOptions = {}): AstroIntegration
   };
 }
 
-function createManifest(config: AstroConfig, routes: IntegrationResolvedRoute[]): AstroJintManifest {
+function createManifest(
+  config: AstroConfig,
+  routes: IntegrationResolvedRoute[],
+  staticHeaders: AstroJintStaticHeaders[],
+): AstroJintManifest {
   const outDir = fileURLToPath(config.outDir);
   const relativeToOutDir = (target: URL) => path.relative(outDir, fileURLToPath(target)).split(path.sep).join('/');
   const server = relativeToOutDir(config.build.server);
@@ -149,6 +171,7 @@ function createManifest(config: AstroConfig, routes: IntegrationResolvedRoute[])
     server,
     entry: `${server}/${config.build.serverEntry}`,
     allowedDomains: config.security.allowedDomains.map(({ protocol, hostname, port }) => ({ protocol, hostname, port })),
+    staticHeaders,
     routes: routes.map((route) => ({
       route: route.pattern,
       type: route.type,

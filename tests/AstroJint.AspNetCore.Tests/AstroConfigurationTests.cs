@@ -35,6 +35,10 @@ public sealed class AstroManifestTests : IDisposable
               "client": "public-site",
               "server": "ssr",
               "entry": "ssr/main.mjs",
+              "staticHeaders": [
+                { "file": "index.html", "headers": { "Content-Security-Policy": "script-src 'self' 'sha256-abc'" } },
+                { "file": "docs/index.html", "headers": { "Content-Security-Policy": "default-src 'none'" } }
+              ],
               "routes": [
                 { "route": "/", "type": "page", "prerender": true, "origin": "project" },
                 { "route": "/time", "type": "page", "prerender": false, "origin": "project", "extra": 1 }
@@ -53,6 +57,10 @@ public sealed class AstroManifestTests : IDisposable
         Assert.Equal("public-site", manifest.Client);
         Assert.Equal("ssr", manifest.Server);
         Assert.Equal("ssr/main.mjs", manifest.Entry);
+        Assert.Equal(2, manifest.StaticHeaders.Count);
+        Assert.Equal("index.html", manifest.StaticHeaders[0].File);
+        Assert.Equal("script-src 'self' 'sha256-abc'", manifest.StaticHeaders[0].Headers["Content-Security-Policy"]);
+        Assert.Equal("docs/index.html", manifest.StaticHeaders[1].File);
         Assert.Equal(2, manifest.Routes.Count);
         Assert.True(manifest.Routes[0].Prerender);
         Assert.False(manifest.Routes[1].Prerender);
@@ -73,6 +81,7 @@ public sealed class AstroManifestTests : IDisposable
         Assert.Equal("client", manifest.Client);
         Assert.Equal("server", manifest.Server);
         Assert.Equal("server/entry.mjs", manifest.Entry);
+        Assert.Empty(manifest.StaticHeaders);
         Assert.Empty(manifest.Routes);
     }
 

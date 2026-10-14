@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -47,6 +48,7 @@ internal sealed class DistFolder : IDisposable
                 client = "client",
                 server = "server",
                 entry = "server/entry.mjs",
+                staticHeaders = Array.Empty<object>(),
                 routes = Array.Empty<object>(),
             }));
 
@@ -68,6 +70,20 @@ internal sealed class DistFolder : IDisposable
 
     public DistFolder WithClientFile(string relativePath, string content) =>
         WithClientFile(relativePath, System.Text.Encoding.UTF8.GetBytes(content));
+
+    /// <summary>Records response headers for a prerendered file in the manifest, like the adapter does for <c>staticHeaders</c>.</summary>
+    public DistFolder WithStaticHeaders(string file, params (string Name, string Value)[] headers)
+    {
+        var manifestFile = Path.Combine(DistPath, "astro-jint.json");
+        var manifest = JsonNode.Parse(File.ReadAllText(manifestFile))!.AsObject();
+        manifest["staticHeaders"]!.AsArray().Add(new JsonObject
+        {
+            ["file"] = file,
+            ["headers"] = new JsonObject(headers.Select(header => KeyValuePair.Create(header.Name, (JsonNode?)header.Value))),
+        });
+        File.WriteAllText(manifestFile, manifest.ToJsonString());
+        return this;
+    }
 
     public DistFolder WithClientFile(string relativePath, byte[] content)
     {

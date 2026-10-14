@@ -35,7 +35,18 @@ export interface AstroJintManifest {
    * matches one of them (as the Node adapter does) and Astro only applies matching `X-Forwarded-*` headers.
    */
   allowedDomains: AstroJintAllowedDomain[];
+  /**
+   * Response headers that Astro rendered for prerendered pages, which the host adds when it serves their files.
+   * Only filled when the adapter has `staticHeaders` on, and then holds `Content-Security-Policy` alone.
+   */
+  staticHeaders: AstroJintStaticHeaders[];
   routes: AstroJintRoute[];
+}
+
+export interface AstroJintStaticHeaders {
+  /** Prerendered file the headers belong to, relative to `client`, using `/` as the separator. */
+  file: string;
+  headers: Record<string, string>;
 }
 
 export interface AstroJintAllowedDomain {

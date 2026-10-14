@@ -52,6 +52,15 @@ internal sealed class AstroStaticFilesMiddleware(RequestDelegate next, AstroApp 
             return;
         }
 
+        // Headers that Astro rendered for the page at build time, such as its Content-Security-Policy.
+        if (app.Files.GetHeaders(match.Path!) is { } headers)
+        {
+            foreach (var (name, value) in headers)
+            {
+                context.Response.Headers[name] = value;
+            }
+        }
+
         // ASP.NET Core ignores an If-Match it cannot parse and would serve the file; other file servers fail the precondition.
         var request = context.Request;
         if (!StringValues.IsNullOrEmpty(request.Headers.IfMatch) && request.GetTypedHeaders().IfMatch.Count == 0)

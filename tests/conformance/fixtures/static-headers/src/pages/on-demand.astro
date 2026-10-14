@@ -1,0 +1,10 @@
+---
+export const prerender = false;
+---
+<html>
+<head><title>On demand</title></head>
+<body>
+<h1>On demand</h1>
+<p id="path">{new URL(Astro.request.url).pathname}</p>
+</body>
+</html>

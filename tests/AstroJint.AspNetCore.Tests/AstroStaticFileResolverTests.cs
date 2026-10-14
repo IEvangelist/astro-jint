@@ -240,6 +240,49 @@ public class AstroStaticFileResolverTests
     }
 
     [Fact]
+    public void GetHeaders_ReturnsWhatTheManifestRecordedForAFile()
+    {
+        var manifest = new AstroManifest
+        {
+            StaticHeaders =
+            [
+                new AstroStaticHeaders { File = "index.html", Headers = new Dictionary<string, string> { ["Content-Security-Policy"] = "script-src 'self'" } },
+                new AstroStaticHeaders { File = "about/index.html", Headers = new Dictionary<string, string> { ["Content-Security-Policy"] = "default-src 'none'" } },
+            ],
+        };
+        var resolver = new AstroStaticFileResolver(DirectoryFormatFiles, manifest);
+
+        Assert.Equal("script-src 'self'", resolver.GetHeaders("index.html")?["Content-Security-Policy"]);
+        Assert.Equal("default-src 'none'", resolver.GetHeaders("about/index.html")?["Content-Security-Policy"]);
+    }
+
+    [Fact]
+    public void GetHeaders_IsEmptyForFilesWithoutHeaders()
+    {
+        var resolver = Create(DirectoryFormatFiles);
+
+        Assert.Null(resolver.GetHeaders("index.html"));
+        Assert.Null(resolver.GetHeaders("missing.html"));
+    }
+
+    [Fact]
+    public void GetHeaders_KeepsTheLastEntryOfAFileThatIsListedTwice()
+    {
+        var manifest = new AstroManifest
+        {
+            StaticHeaders =
+            [
+                new AstroStaticHeaders { File = "index.html", Headers = new Dictionary<string, string> { ["X-Test"] = "first" } },
+                new AstroStaticHeaders { File = "index.html", Headers = new Dictionary<string, string> { ["X-Test"] = "second" } },
+            ],
+        };
+
+        var resolver = new AstroStaticFileResolver(DirectoryFormatFiles, manifest);
+
+        Assert.Equal("second", resolver.GetHeaders("index.html")?["X-Test"]);
+    }
+
+    [Fact]
     public void FromDirectory_ReadsTheClientFolder()
     {
         using var dist = DistFolder.CreateDefault();

@@ -489,6 +489,140 @@ public class AstroStaticFilesMiddlewareTests
         Assert.Equal(["immutable", "max-age=31536000", "public"], CacheDirectives(response));
     }
 
+    private static DistFolder SiteWithStaticHeaders(string baseFolder = "/", string trailingSlash = "ignore") =>
+        SiteWithTwoPages(baseFolder, trailingSlash)
+            .WithClientFile("robots.txt", "User-agent: *")
+            .WithStaticHeaders("index.html", ("Content-Security-Policy", "script-src 'self' 'sha256-home'"))
+            .WithStaticHeaders("about/index.html", ("Content-Security-Policy", "script-src 'self' 'sha256-about'"), ("X-Page", "about"));
+
+    [Theory]
+    [InlineData("/", "script-src 'self' 'sha256-home'")]
+    [InlineData("/index.html", "script-src 'self' 'sha256-home'")]
+    [InlineData("/about", "script-src 'self' 'sha256-about'")]
+    [InlineData("/about/", "script-src 'self' 'sha256-about'")]
+    [InlineData("/about/index.html", "script-src 'self' 'sha256-about'")]
+    public async Task StaticHeaders_AreSentWithThePageUnderEveryUrlOfIt(string path, string expectedPolicy)
+    {
+        using var dist = SiteWithStaticHeaders();
+        await using var site = await TestSite.StartAsync(dist);
+
+        using var response = await site.Client.GetAsync(path);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal([expectedPolicy], response.Headers.GetValues("Content-Security-Policy"));
+    }
+
+    [Fact]
+    public async Task StaticHeaders_AreSentAsTheyAre()
+    {
+        using var dist = SiteWithStaticHeaders();
+        await using var site = await TestSite.StartAsync(dist);
+
+        using var response = await site.Client.GetAsync("/about");
+
+        Assert.Equal(["about"], response.Headers.GetValues("X-Page"));
+        Assert.Equal("<h1>About</h1>", await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task StaticHeaders_AreSentWithHeadRequestsToo()
+    {
+        using var dist = SiteWithStaticHeaders();
+        await using var site = await TestSite.StartAsync(dist);
+        using var request = new HttpRequestMessage(HttpMethod.Head, "/");
+
+        using var response = await site.Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(["script-src 'self' 'sha256-home'"], response.Headers.GetValues("Content-Security-Policy"));
+        Assert.Empty(await response.Content.ReadAsByteArrayAsync());
+    }
+
+    [Fact]
+    public async Task StaticHeaders_ReplaceTheHeadersOfTheSameName()
+    {
+        using var dist = SiteWithStaticHeaders();
+        await using var site = await TestSite.StartAsync(dist, configureApp: app => app.Use((context, next) =>
+        {
+            context.Response.Headers["Content-Security-Policy"] = "default-src *";
+            return next(context);
+        }));
+
+        using var response = await site.Client.GetAsync("/");
+
+        Assert.Equal(["script-src 'self' 'sha256-home'"], response.Headers.GetValues("Content-Security-Policy"));
+    }
+
+    [Theory]
+    [InlineData("/robots.txt")]
+    [InlineData("/blog/")]
+    public async Task StaticHeaders_AreOnlySentWithTheirOwnPage(string path)
+    {
+        using var dist = SiteWithStaticHeaders().WithClientFile("blog/index.html", "<h1>Blog</h1>");
+        await using var site = await TestSite.StartAsync(dist);
+
+        using var response = await site.Client.GetAsync(path);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False(response.Headers.Contains("Content-Security-Policy"));
+    }
+
+    [Fact]
+    public async Task StaticHeaders_AreNotSentWithRedirects()
+    {
+        using var dist = SiteWithStaticHeaders(trailingSlash: "always");
+        await using var site = await TestSite.StartAsync(dist);
+
+        using var response = await site.Client.GetAsync("/about");
+
+        Assert.Equal(HttpStatusCode.MovedPermanently, response.StatusCode);
+        Assert.False(response.Headers.Contains("Content-Security-Policy"));
+    }
+
+    [Theory]
+    [InlineData("/docs", "script-src 'self' 'sha256-home'")]
+    [InlineData("/docs/", "script-src 'self' 'sha256-home'")]
+    [InlineData("/docs/about", "script-src 'self' 'sha256-about'")]
+    [InlineData("/docs/about/index.html", "script-src 'self' 'sha256-about'")]
+    public async Task StaticHeaders_FollowTheFileBehindABase(string path, string expectedPolicy)
+    {
+        using var dist = SiteWithStaticHeaders(baseFolder: "/docs");
+        await using var site = await TestSite.StartAsync(dist);
+
+        using var response = await site.Client.GetAsync(path);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal([expectedPolicy], response.Headers.GetValues("Content-Security-Policy"));
+    }
+
+    [Fact]
+    public async Task StaticHeaders_AreSentWithNotModifiedResponses()
+    {
+        using var dist = SiteWithStaticHeaders();
+        await using var site = await TestSite.StartAsync(dist);
+        using var first = await site.Client.GetAsync("/");
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/");
+        request.Headers.IfNoneMatch.Add(first.Headers.ETag!);
+
+        using var response = await site.Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.NotModified, response.StatusCode);
+        Assert.Equal(["script-src 'self' 'sha256-home'"], response.Headers.GetValues("Content-Security-Policy"));
+    }
+
+    [Fact]
+    public async Task StaticHeaders_AreNotSentForFilesThatDisappearedAfterStartup()
+    {
+        using var dist = SiteWithStaticHeaders();
+        await using var site = await TestSite.StartAsync(dist);
+        File.Delete(Path.Combine(dist.ClientPath, "index.html"));
+
+        using var response = await site.Client.GetAsync("/");
+
+        await AssertEngineNotFoundAsync(response);
+        Assert.False(response.Headers.Contains("Content-Security-Policy"));
+    }
+
     [Fact]
     public async Task PathBase_IsPartOfThePublicPath()
     {
