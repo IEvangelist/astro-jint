@@ -23,16 +23,18 @@ public sealed class SiteHost : IAsyncDisposable
     /// <param name="variant">Tells hosts of one build with different host options apart.</param>
     /// <param name="configureApp">Adds middleware before the Astro pipeline; name the <paramref name="variant"/> when it does.</param>
     /// <param name="configureServices">Registers services; name the <paramref name="variant"/> when it does.</param>
+    /// <param name="https">Listens for TLS, as a site behind TLS termination in Kestrel would.</param>
     public Task<ConformanceSite> GetAsync(
         string fixture,
         object? config = null,
         Action<AstroOptions>? configure = null,
         string variant = "",
         Action<WebApplication>? configureApp = null,
-        Action<IServiceCollection>? configureServices = null) =>
+        Action<IServiceCollection>? configureServices = null,
+        bool https = false) =>
         _sites.GetOrAdd(
-            $"{fixture}|{Serialize(config)}|{variant}",
-            _ => new Lazy<Task<ConformanceSite>>(() => ConformanceSite.StartAsync(fixture, config, configure, configureApp, configureServices))).Value;
+            $"{fixture}|{Serialize(config)}|{variant}|{https}",
+            _ => new Lazy<Task<ConformanceSite>>(() => ConformanceSite.StartAsync(fixture, config, configure, configureApp, configureServices, https))).Value;
 
     internal static string Serialize(object? config) => config switch
     {

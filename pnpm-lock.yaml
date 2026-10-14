@@ -35,6 +35,24 @@ importers:
         specifier: ^7.3.6
         version: 7.3.8(@types/node@24.19.2)(yaml@2.9.1)
 
+  tests/conformance/fixtures/aborted-request:
+    dependencies:
+      astro:
+        specifier: ^7.3.6
+        version: 7.3.8(@types/node@24.19.2)(yaml@2.9.1)
+      astro-adapter-jint:
+        specifier: workspace:*
+        version: link:../../../../packages/astro-adapter-jint
+
+  tests/conformance/fixtures/api-route:
+    dependencies:
+      astro:
+        specifier: ^7.3.6
+        version: 7.3.8(@types/node@24.19.2)(yaml@2.9.1)
+      astro-adapter-jint:
+        specifier: workspace:*
+        version: link:../../../../packages/astro-adapter-jint
+
   tests/conformance/fixtures/bad-urls:
     dependencies:
       astro:
@@ -89,6 +107,15 @@ importers:
         specifier: workspace:*
         version: link:../../../../packages/astro-adapter-jint
 
+  tests/conformance/fixtures/prerender:
+    dependencies:
+      astro:
+        specifier: ^7.3.6
+        version: 7.3.8(@types/node@24.19.2)(yaml@2.9.1)
+      astro-adapter-jint:
+        specifier: workspace:*
+        version: link:../../../../packages/astro-adapter-jint
+
   tests/conformance/fixtures/prerender-404-500:
     dependencies:
       astro:
@@ -117,6 +144,24 @@ importers:
         version: link:../../../../packages/astro-adapter-jint
 
   tests/conformance/fixtures/ssr-assets-middleware:
+    dependencies:
+      astro:
+        specifier: ^7.3.6
+        version: 7.3.8(@types/node@24.19.2)(yaml@2.9.1)
+      astro-adapter-jint:
+        specifier: workspace:*
+        version: link:../../../../packages/astro-adapter-jint
+
+  tests/conformance/fixtures/trailing-slash:
+    dependencies:
+      astro:
+        specifier: ^7.3.6
+        version: 7.3.8(@types/node@24.19.2)(yaml@2.9.1)
+      astro-adapter-jint:
+        specifier: workspace:*
+        version: link:../../../../packages/astro-adapter-jint
+
+  tests/conformance/fixtures/url:
     dependencies:
       astro:
         specifier: ^7.3.6

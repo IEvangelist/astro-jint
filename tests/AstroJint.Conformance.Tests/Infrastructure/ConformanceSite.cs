@@ -20,17 +20,19 @@ public sealed class ConformanceSite : IAsyncDisposable
     private readonly WebApplication _app;
     private readonly ListLoggerProvider _logs;
 
-    private ConformanceSite(WebApplication app, ListLoggerProvider logs, string fixture)
+    private ConformanceSite(WebApplication app, ListLoggerProvider logs, string fixture, string distPath)
     {
         _app = app;
         _logs = logs;
         Fixture = fixture;
+        DistPath = distPath;
         BaseAddress = new Uri(app.Urls.Single());
         Client = new HttpClient(new SocketsHttpHandler
         {
             AllowAutoRedirect = false,
             UseCookies = false,
             AutomaticDecompression = DecompressionMethods.None,
+            SslOptions = { RemoteCertificateValidationCallback = (_, _, _, _) => true },
         })
         {
             BaseAddress = BaseAddress,
@@ -40,6 +42,11 @@ public sealed class ConformanceSite : IAsyncDisposable
 
     public string Fixture { get; }
 
+    /// <summary>The build output this site serves.</summary>
+    public string DistPath { get; }
+
+    /// <summary>Whether the build wrote the file, addressed relative to the output folder, as in <c>client/two/index.html</c>.</summary>
+    public bool PathExists(string relativePath) => File.Exists(Path.Combine(DistPath, relativePath));
     public Uri BaseAddress { get; }
 
     public HttpClient Client { get; }
@@ -53,12 +60,14 @@ public sealed class ConformanceSite : IAsyncDisposable
     /// <param name="config">Changes to the Astro config of the fixture, like the inline config an upstream test passes to <c>loadFixture()</c>.</param>
     /// <param name="configure">Adjusts the options of the host.</param>
     /// <param name="configureApp">Adds middleware and endpoints before the Astro pipeline.</param>
+    /// <param name="https">Listens for TLS with a self-signed certificate, which <see cref="Client"/> accepts.</param>
     public static async Task<ConformanceSite> StartAsync(
         string fixture,
         object? config = null,
         Action<AstroOptions>? configure = null,
         Action<WebApplication>? configureApp = null,
-        Action<IServiceCollection>? configureServices = null)
+        Action<IServiceCollection>? configureServices = null,
+        bool https = false)
     {
         var dist = await FixtureBuilder.EnsureBuiltAsync(fixture, SiteHost.Serialize(config));
 
@@ -69,7 +78,13 @@ public sealed class ConformanceSite : IAsyncDisposable
             EnvironmentName = Environments.Production,
         });
 
-        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        builder.WebHost.UseUrls(https ? "https://127.0.0.1:0" : "http://127.0.0.1:0");
+        if (https)
+        {
+            var certificate = SelfSignedCertificate.Create();
+            builder.WebHost.ConfigureKestrel(kestrel => kestrel.ConfigureHttpsDefaults(defaults => defaults.ServerCertificate = certificate));
+        }
+
         builder.Logging.ClearProviders();
         builder.Logging.AddProvider(logs);
         builder.Services.AddAstro(options =>
@@ -86,7 +101,7 @@ public sealed class ConformanceSite : IAsyncDisposable
         app.UseAstro();
         await app.StartAsync();
 
-        return new ConformanceSite(app, logs, fixture);
+        return new ConformanceSite(app, logs, fixture, dist);
     }
 
     public Task<HttpResponseMessage> GetAsync(string path) => Client.GetAsync(path);
@@ -106,12 +121,20 @@ public sealed class ConformanceSite : IAsyncDisposable
 
     public static IDocument ParseHtml(string html) => new HtmlParser().ParseDocument(html);
 
+    /// <param name="headers">
+    /// Request headers. <c>Host</c> replaces the one that <see cref="HttpClient"/> derives from the address, so a test can
+    /// send the request as if it had been addressed to another host.
+    /// </param>
     public Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, HttpContent? content = null, params (string Name, string Value)[] headers)
     {
         var request = new HttpRequestMessage(method, path) { Content = content };
         foreach (var (name, value) in headers)
         {
-            if (!request.Headers.TryAddWithoutValidation(name, value))
+            if (name.Equals("Host", StringComparison.OrdinalIgnoreCase))
+            {
+                request.Headers.Host = value;
+            }
+            else if (!request.Headers.TryAddWithoutValidation(name, value))
             {
                 request.Content ??= new ByteArrayContent([]);
                 request.Content.Headers.TryAddWithoutValidation(name, value);

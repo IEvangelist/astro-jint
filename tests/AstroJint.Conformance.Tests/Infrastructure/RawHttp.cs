@@ -41,11 +41,18 @@ internal static class RawHttp
 
     public static byte[] BuildRequest(Uri address, string method, string target, IEnumerable<(string Name, string Value)> headers, byte[]? body)
     {
+        var sent = headers.ToList();
         var head = new StringBuilder()
-            .Append(method).Append(' ').Append(target).Append(" HTTP/1.1\r\n")
-            .Append("Host: ").Append(address.Authority).Append("\r\n")
-            .Append("Connection: close\r\n");
-        foreach (var (name, value) in headers)
+            .Append(method).Append(' ').Append(target).Append(" HTTP/1.1\r\n");
+
+        // A test may send a Host of its own, which then stands in for the address of the socket.
+        if (!sent.Any(header => header.Name.Equals("Host", StringComparison.OrdinalIgnoreCase)))
+        {
+            head.Append("Host: ").Append(address.Authority).Append("\r\n");
+        }
+
+        head.Append("Connection: close\r\n");
+        foreach (var (name, value) in sent)
         {
             head.Append(name).Append(": ").Append(value).Append("\r\n");
         }
