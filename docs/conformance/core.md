@@ -13,12 +13,19 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
 | Upstream file | `it`s | ported | adapted | gap | N/A | Ported as | Notes |
 |---|---|---|---|---|---|---|---|
 | `ssr-request.test.ts` | 6 | 6 | 0 | 0 | 0 | `Core\SsrRequestTests.cs` | Fixture `core-ssr-request`. |
+| `ssr-prerender.test.ts` | 15 | 9 | 3 | 0 | 3 | `Core\SsrPrerenderTests.cs` | Fixture `core-ssr-prerender`; 2 of the `it`s are in a `describe.skip` upstream. |
 
 ## Differences
 
 - `ssr-request.test.ts`: requests carry `Host: example.com` instead of the absolute URL that `app.render` receives; assets are served by the
   static files layer (the test adapter serves `manifest.assets` itself). The tests also check the content type and the content of the
   CSS and script that the page links to, and that the redirect of the middleware points to `/`.
+- `ssr-prerender.test.ts`: `Does not render static page` expects a 404 from the test adapter's app; the host serves `/static` from its
+  file, so the port requests `/static?q=on-demand` and checks that the response is the file (ETag, empty `#searchparams`) and not a
+  rendering. `includes prerendered pages in the asset manifest` checks that `client/static/index.html` exists and is served.
+  `SSR routes still have inline styles in the SSR manifest` reads `app.manifest.routes`; the port checks that `/not-prerendered`
+  still answers with the inline `<style>`. The `readFile` assertions on the prerendered page request it from the host instead, and
+  `SSR entry chunk does not contain the prerender-only CSS string` reads `server/entry.mjs`, which is the server entry of this adapter too.
 
 ## Gaps
 
@@ -26,4 +33,9 @@ None so far.
 
 ## Not applicable
 
-None so far.
+- `ssr-prerender.test.ts` / `prerendered routes have empty styles in the SSR manifest`: asserts on `app.manifest.routes[].styles`, the
+  in-process manifest of the test adapter; the only effect of an empty list is a smaller bundle, which nothing over HTTP can observe
+  (the neighbouring `SSR entry chunk` test covers the visible part).
+- `ssr-prerender.test.ts` / `An integration can override the prerender flag` and `An integration can turn a normal page to a prerendered one`:
+  both are in a `describe.skip` upstream (the comment there explains that the client build cannot change the prerender state), so they
+  assert nothing.
