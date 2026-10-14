@@ -62,6 +62,27 @@ importers:
         specifier: workspace:*
         version: link:../../../../packages/astro-adapter-jint
 
+  tests/conformance/fixtures/cf-pages:
+    dependencies:
+      astro:
+        specifier: ^7.3.6
+        version: 7.3.8(@types/node@24.19.2)(yaml@2.9.1)
+      astro-adapter-jint:
+        specifier: workspace:*
+        version: link:../../../../packages/astro-adapter-jint
+      devalue:
+        specifier: ^5.9.4
+        version: 5.9.4
+
+  tests/conformance/fixtures/cf-sql:
+    dependencies:
+      astro:
+        specifier: ^7.3.6
+        version: 7.3.8(@types/node@24.19.2)(yaml@2.9.1)
+      astro-adapter-jint:
+        specifier: workspace:*
+        version: link:../../../../packages/astro-adapter-jint
+
   tests/conformance/fixtures/content-collection:
     dependencies:
       '@astrojs/mdx':

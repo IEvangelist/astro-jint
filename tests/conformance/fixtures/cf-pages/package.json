@@ -1,0 +1,11 @@
+{
+  "name": "conformance-cf-pages",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "dependencies": {
+    "astro": "^7.3.6",
+    "astro-adapter-jint": "workspace:*",
+    "devalue": "^5.9.4"
+  }
+}

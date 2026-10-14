@@ -1,0 +1,15 @@
+---
+export const prerender = true;
+---
+<html>
+	<head>
+		<title>Static site with a client script</title>
+	</head>
+	<body>
+		<h1>Static site with a client script</h1>
+		<p>This page is prerendered and has a script for the browser.</p>
+		<script>
+			document.querySelector("h1")?.setAttribute("data-ready", "");
+		</script>
+	</body>
+</html>

@@ -1,0 +1,14 @@
+---
+import query from '../query.sql';
+
+export const prerender = false;
+---
+<html>
+	<head>
+		<title>SQL Import Test</title>
+	</head>
+	<body>
+		<h1>SQL Import Test</h1>
+		<pre id="query">{query}</pre>
+	</body>
+</html>

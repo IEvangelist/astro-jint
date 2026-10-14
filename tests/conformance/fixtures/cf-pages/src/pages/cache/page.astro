@@ -1,0 +1,9 @@
+---
+export const prerender = false;
+Astro.cache.set({ maxAge: 60 });
+---
+<html>
+	<body>
+		<div id="has-cache">{typeof Astro.cache.set}</div>
+	</body>
+</html>
