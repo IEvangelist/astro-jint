@@ -16,7 +16,11 @@ internal static class FixtureBuilder
     private const string ManifestFile = "astro-jint.json";
     private const string NoOverrides = "{}";
 
-    private static readonly SemaphoreSlim BuildSlots = new(Math.Max(2, Environment.ProcessorCount / 4));
+    // CONFORMANCE_BUILD_SLOTS caps the builds that run at once, for machines that are short of memory or run several suites.
+    private static readonly SemaphoreSlim BuildSlots = new(
+        int.TryParse(Environment.GetEnvironmentVariable("CONFORMANCE_BUILD_SLOTS"), out var slots) && slots > 0
+            ? slots
+            : Math.Max(2, Environment.ProcessorCount / 4));
     private static readonly ConcurrentDictionary<string, Lazy<Task<string>>> Builds = new(StringComparer.Ordinal);
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> FixtureLocks = new(StringComparer.Ordinal);
     private static readonly Lazy<Task> Adapter = new(BuildAdapterAsync);
