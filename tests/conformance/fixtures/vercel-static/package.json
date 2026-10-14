@@ -1,0 +1,11 @@
+{
+  "name": "conformance-vercel-static",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "dependencies": {
+    "@astrojs/sitemap": "^3.7.4",
+    "astro": "^7.3.6",
+    "astro-adapter-jint": "workspace:*"
+  }
+}
