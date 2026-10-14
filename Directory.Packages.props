@@ -1,0 +1,12 @@
+<Project>
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Jint 5 is only published to the Jint preview feed (see nuget.config). Keep this pinned. -->
+    <PackageVersion Include="Jint" Version="5.0.0-preview-2249" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.astro/
+bin/
+obj/
+.vs/
+.idea/
+*.user
+*.log
+TestResults/
+BenchmarkDotNet.Artifacts/
+.env
