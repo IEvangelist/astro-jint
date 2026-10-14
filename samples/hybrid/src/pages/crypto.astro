@@ -1,0 +1,13 @@
+---
+export const prerender = false;
+const id = crypto.randomUUID();
+const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('astro-jint'));
+const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+---
+<html lang="en">
+  <head><meta charset="utf-8" /><title>Crypto</title></head>
+  <body>
+    <p id="uuid">{id}</p>
+    <p id="sha256">{hex}</p>
+  </body>
+</html>

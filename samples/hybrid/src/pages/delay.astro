@@ -1,0 +1,10 @@
+---
+export const prerender = false;
+const started = Date.now();
+await new Promise((resolve) => setTimeout(resolve, 25));
+const waited = Date.now() - started;
+---
+<html lang="en">
+  <head><meta charset="utf-8" /><title>Delay</title></head>
+  <body><p id="waited">{waited >= 20 ? 'timer-fired' : `too-early:${waited}`}</p></body>
+</html>

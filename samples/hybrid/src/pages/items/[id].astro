@@ -1,0 +1,14 @@
+---
+export const prerender = false;
+const { id } = Astro.params;
+const q = Astro.url.searchParams.get('q');
+const ua = Astro.request.headers.get('user-agent');
+---
+<html lang="en">
+  <head><meta charset="utf-8" /><title>Item {id}</title></head>
+  <body>
+    <h1>Item {id}</h1>
+    <p>q={q}</p>
+    <p>ua={ua}</p>
+  </body>
+</html>
