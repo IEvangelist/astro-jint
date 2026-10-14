@@ -70,7 +70,20 @@ public sealed class ConformanceSite : IAsyncDisposable
         bool https = false)
     {
         var dist = await FixtureBuilder.EnsureBuiltAsync(fixture, SiteHost.Serialize(config));
+        return await StartFromDistAsync(fixture, dist, configure, configureApp, configureServices, https);
+    }
 
+    /// <summary>Starts a host for a build output that is already there, wherever it is; a test can have copied the build elsewhere.</summary>
+    /// <param name="fixture">Folder name below <c>tests/conformance/fixtures</c> that the output was built from.</param>
+    /// <param name="dist">The build output folder, with <c>client</c>, <c>server</c> and <c>astro-jint.json</c> in it.</param>
+    public static async Task<ConformanceSite> StartFromDistAsync(
+        string fixture,
+        string dist,
+        Action<AstroOptions>? configure = null,
+        Action<WebApplication>? configureApp = null,
+        Action<IServiceCollection>? configureServices = null,
+        bool https = false)
+    {
         var logs = new ListLoggerProvider();
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {

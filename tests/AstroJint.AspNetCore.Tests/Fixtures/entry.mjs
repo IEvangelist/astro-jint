@@ -4,12 +4,20 @@ const host = globalThis.__astroJint;
 
 // Module scope exists once per engine, so this shows when an engine was replaced.
 let handled = 0;
+const engineId = Math.random().toString(36).slice(2);
 
 const json = (value, init = {}) =>
   new Response(JSON.stringify(value), {
     ...init,
     headers: { 'content-type': 'application/json', ...init.headers },
   });
+
+const busyWait = (ms) => {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    // The engine is single threaded: while this spins, a concurrent request has to use another engine.
+  }
+};
 
 export default {
   async fetch(request) {
@@ -39,6 +47,46 @@ export default {
           env: host.env(query.get('env') ?? ''),
           file: host.readClientFile(query.get('file') ?? ''),
         });
+
+      case '/host-bytes': {
+        const buffer = host.readClientBytes(query.get('file') ?? '');
+        if (buffer === null) {
+          return json({ found: false });
+        }
+
+        return json({
+          found: true,
+          isArrayBuffer: buffer instanceof ArrayBuffer,
+          length: buffer.byteLength,
+          head: Array.from(new Uint8Array(buffer).subarray(0, 6)),
+          sha256: host.sha256(buffer),
+        });
+      }
+
+      case '/sha256': {
+        const bytes = new Uint8Array((query.get('bytes') ?? '').split(',').filter(Boolean).map(Number));
+        return json({
+          ofBuffer: host.sha256(bytes.buffer),
+          ofView: host.sha256(bytes),
+          ofText: host.sha256('abc'),
+          ofNothing: host.sha256(),
+        });
+      }
+
+      case '/fetch': {
+        try {
+          const response = await fetch(query.get('url'), { redirect: query.get('redirect') ?? 'follow' });
+          return json({
+            ok: true,
+            status: response.status,
+            url: response.url,
+            redirected: response.redirected,
+            body: query.has('binary') ? Array.from(new Uint8Array(await response.arrayBuffer())) : await response.text(),
+          });
+        } catch (error) {
+          return json({ ok: false, error: String(error) });
+        }
+      }
 
       case '/cookies': {
         const headers = new Headers({ 'content-type': 'text/plain' });
@@ -71,6 +119,47 @@ export default {
       case '/count':
         return json({ handled });
 
+      case '/session-get': {
+        const value = await host.sessionGet(query.get('id'));
+        busyWait(Number(query.get('hold') ?? 0));
+        return json({ engine: engineId, value });
+      }
+
+      case '/session-set':
+        await host.sessionSet(query.get('id'), query.get('value'));
+        return json({ engine: engineId });
+
+      case '/session-remove':
+        await host.sessionRemove(query.get('id'));
+        return json({ engine: engineId });
+
+      // The result is not awaited, so the operation settles after the response has been sent.
+      case '/session-detached':
+        host.sessionSet(query.get('id'), query.get('value'));
+        return json({ engine: engineId });
+
+      case '/session-parallel': {
+        const count = Number(query.get('count') ?? 10);
+        const ids = Array.from({ length: count }, (_, index) => `parallel-${index}`);
+        await Promise.all(ids.map((id, index) => host.sessionSet(id, `value-${index}`)));
+        return json({ values: await Promise.all(ids.map((id) => host.sessionGet(id))) });
+      }
+
+      case '/session-catch':
+        try {
+          return json({ ok: true, value: await host.sessionGet(query.get('id') ?? 'any') });
+        } catch (error) {
+          return json({ ok: false, error: String(error), isError: error instanceof Error });
+        }
+
+      case '/session-bad-arguments':
+        try {
+          await host.sessionSet('only-an-id');
+          return json({ ok: true });
+        } catch (error) {
+          return json({ ok: false, error: String(error) });
+        }
+
       case '/throw':
         throw new Error('boom');
 
@@ -78,11 +167,7 @@ export default {
         return Promise.reject(new Error('rejected'));
 
       case '/spin': {
-        const end = Date.now() + Number(query.get('ms') ?? 0);
-        while (Date.now() < end) {
-          // Busy wait: the engine is single threaded and has no timers worth relying on.
-        }
-
+        busyWait(Number(query.get('ms') ?? 0));
         return json({ handled });
       }
 

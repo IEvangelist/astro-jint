@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Acornima.Ast;
 using Jint;
 using Jint.Native;
@@ -12,6 +13,8 @@ internal sealed class AstroEngineFactory(
     AstroOptions options,
     string entryPath,
     Func<string, string?> readClientFile,
+    Func<string, byte[]?> readClientBytes,
+    AstroSessionStore sessions,
     ConsoleSink consoleSink)
 {
     // Error.stack in Jint starts with the frames, but Astro's error pages (and most libraries) expect the
@@ -47,7 +50,7 @@ internal sealed class AstroEngineFactory(
         {
             engineOptions.UseWebApis();
             engineOptions.UseConsole(consoleSink);
-            engineOptions.UseFetch(fetch => fetch.UrlFilter = _ => false);
+            engineOptions.UseFetch(fetch => fetch.UrlFilter = options.FetchUrlFilter ?? (_ => false));
             engineOptions.TimeZone = options.TimeZone;
             if (options.MemoryLimitBytes is { } limit)
             {
@@ -80,11 +83,79 @@ internal sealed class AstroEngineFactory(
         Add("locals", _ => ToJs(context.LocalsJson));
         Add("env", name => ToJs(name is not null && options.Env.TryGetValue(name, out var value) ? value : null));
         Add("readClientFile", pathname => ToJs(pathname is null ? null : readClientFile(pathname)));
+        Add("readClientBytes", pathname => pathname is not null && readClientBytes(pathname) is { } bytes
+            ? engine.Intrinsics.ArrayBuffer.Construct(bytes)
+            : JsValue.Null);
+
+        // A digest is cheap here and expensive in an interpreter, which matters for the ETag of an image.
+        host.Set("sha256", new ClrFunction(engine, "sha256", (_, arguments) =>
+            arguments is [{ } value, ..] && value.IsArrayBuffer() && value.AsArrayBuffer() is { } data
+                ? new JsString(Convert.ToHexStringLower(SHA256.HashData(data)))
+                : JsValue.Null));
+
+        // Session data has to outlive the engines and be shared by them, so the host keeps it. The caches that suit
+        // it (Redis, SQL Server) are asynchronous, hence promises.
+        AddAsync("sessionGet", (id, _) => sessions.GetAsync(Required(id), context.Cancellation));
+        AddAsync("sessionSet", async (id, data) =>
+        {
+            await sessions.SetAsync(Required(id), Required(data), context.Cancellation).ConfigureAwait(false);
+            return null;
+        });
+        AddAsync("sessionRemove", async (id, _) =>
+        {
+            await sessions.RemoveAsync(Required(id), context.Cancellation).ConfigureAwait(false);
+            return null;
+        });
         return host;
 
         void Add(string name, Func<string?, JsValue> implementation) =>
-            host.Set(name, new ClrFunction(engine, name, (_, arguments) => implementation(
-                arguments.Length > 0 && arguments[0].IsString() ? arguments[0].AsString() : null)));
+            host.Set(name, new ClrFunction(engine, name, (_, arguments) => implementation(StringAt(arguments, 0))));
+
+        void AddAsync(string name, Func<string?, string?, Task<string?>> operation) =>
+            host.Set(name, new ClrFunction(engine, name, (_, arguments) =>
+            {
+                var (first, second) = (StringAt(arguments, 0), StringAt(arguments, 1));
+                return ToPromise(engine, () => operation(first, second));
+            }));
+
+        static string Required(string? value) => value ?? throw new ArgumentException("A string was expected.");
+    }
+
+    private static string? StringAt(JsValue[] arguments, int index) =>
+        arguments.Length > index && arguments[index].IsString() ? arguments[index].AsString() : null;
+
+    // The work runs on the .NET side and settles the promise on the engine's own event loop when it is done.
+    // Failures reach JavaScript without detail: the stores log what went wrong themselves.
+    private static JsValue ToPromise(Engine engine, Func<Task<string?>> operation)
+    {
+        var promise = engine.Tasks.RegisterPromise();
+        _ = SettleAsync();
+        return promise.Promise;
+
+        async Task SettleAsync()
+        {
+            try
+            {
+                var result = await operation().ConfigureAwait(false);
+                Post(() => promise.Resolve(ToJs(result)));
+            }
+            catch (Exception)
+            {
+                Post(() => promise.Reject(engine.Intrinsics.Error.Construct("The host failed to complete the operation.")));
+            }
+        }
+
+        void Post(Action settle)
+        {
+            try
+            {
+                engine.Tasks.Post(settle);
+            }
+            catch (ObjectDisposedException)
+            {
+                // The engine was replaced while it waited, and nothing waits for the answer any more.
+            }
+        }
     }
 
     private static JsValue ToJs(string? value) => value is null ? JsValue.Null : new JsString(value);

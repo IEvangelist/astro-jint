@@ -262,6 +262,89 @@ public class AstroStaticFilesMiddlewareTests
     }
 
     [Theory]
+    [InlineData("/_astro/app.abc123.js")]
+    [InlineData("/about")]
+    public async Task IfMatch_WithAnotherEntityTag_Returns412WithoutCacheHeaders(string path)
+    {
+        await using var site = await TestSite.StartAsync();
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        request.Headers.IfMatch.Add(new EntityTagHeaderValue("\"stale\""));
+
+        using var response = await site.Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.PreconditionFailed, response.StatusCode);
+        Assert.False(response.Headers.Contains("Cache-Control"));
+    }
+
+    [Theory]
+    [InlineData("/_astro/app.abc123.js")]
+    [InlineData("/about")]
+    public async Task IfMatch_ThatCannotBeParsed_Returns412WithoutCacheHeaders(string path)
+    {
+        await using var site = await TestSite.StartAsync();
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        request.Headers.TryAddWithoutValidation("If-Match", "xxx");
+
+        using var response = await site.Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.PreconditionFailed, response.StatusCode);
+        Assert.False(response.Headers.Contains("Cache-Control"));
+        Assert.Empty(await response.Content.ReadAsByteArrayAsync());
+    }
+
+    [Fact]
+    public async Task IfMatch_WithTheCurrentEntityTag_ServesTheFile()
+    {
+        await using var site = await TestSite.StartAsync();
+        using var first = await site.Client.GetAsync("/about");
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/about");
+        request.Headers.IfMatch.Add(first.Headers.ETag!);
+
+        using var response = await site.Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("<h1>About</h1>", await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task IfMatch_WithAnyEntityTag_ServesTheFile()
+    {
+        await using var site = await TestSite.StartAsync();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/about");
+        request.Headers.TryAddWithoutValidation("If-Match", "*");
+
+        using var response = await site.Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Range_ThatFails_IsNeverCached()
+    {
+        await using var site = await TestSite.StartAsync();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/_astro/app.abc123.js");
+        request.Headers.Range = new RangeHeaderValue(2000, null);
+
+        using var response = await site.Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.RequestedRangeNotSatisfiable, response.StatusCode);
+        Assert.False(response.Headers.Contains("Cache-Control"));
+    }
+
+    [Fact]
+    public async Task Range_ThatSucceeds_IsCachedLikeTheFile()
+    {
+        await using var site = await TestSite.StartAsync();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/_astro/app.abc123.js");
+        request.Headers.Range = new RangeHeaderValue(0, 3);
+
+        using var response = await site.Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.PartialContent, response.StatusCode);
+        Assert.Equal(["immutable", "max-age=31536000", "public"], CacheDirectives(response));
+    }
+
+    [Theory]
     [InlineData("always", "/about", "/about/")]
     [InlineData("always", "/about?x=1&y=%20z", "/about/?x=1&y=%20z")]
     [InlineData("never", "/about/", "/about")]

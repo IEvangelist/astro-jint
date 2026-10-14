@@ -1,9 +1,10 @@
 using System.Net;
+using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace AstroJint.AspNetCore.Tests;
 
-/// <summary>What the host tells the bundle: <c>clientAddress</c>, <c>locals</c>, <c>env</c> and <c>readClientFile</c>.</summary>
+/// <summary>What the host tells the bundle: <c>clientAddress</c>, <c>locals</c>, <c>env</c>, <c>readClientFile</c>, <c>readClientBytes</c> and <c>sha256</c>.</summary>
 public class AstroHostContextTests
 {
     [Fact]
@@ -130,6 +131,74 @@ public class AstroHostContextTests
 
         Assert.Equal("<p>spaced</p>", spaced.GetProperty("file").GetString());
         Assert.Equal("<p>missing</p>", withBase.GetProperty("file").GetString());
+    }
+
+    [Fact]
+    public async Task ReadClientBytes_ReturnsTheBytesOfAnyFileOfTheBuild()
+    {
+        await using var site = await TestSite.StartAsync();
+        var expected = Enumerable.Range(0, 1000).Select(i => (byte)i).ToArray();
+
+        var host = await site.GetJsonAsync("/host-bytes?file=%2Fblob.bin");
+
+        Assert.True(host.GetProperty("found").GetBoolean());
+        Assert.True(host.GetProperty("isArrayBuffer").GetBoolean());
+        Assert.Equal(1000, host.GetProperty("length").GetInt32());
+        Assert.Equal([0, 1, 2, 3, 4, 5], host.GetProperty("head").EnumerateArray().Select(value => value.GetInt32()));
+        Assert.Equal(Convert.ToHexStringLower(SHA256.HashData(expected)), host.GetProperty("sha256").GetString());
+    }
+
+    [Theory]
+    [InlineData("/missing.bin")]
+    [InlineData("/about/")]
+    [InlineData("/../astro-jint.json")]
+    [InlineData("/private/.env")]
+    [InlineData("")]
+    public async Task ReadClientBytes_ReturnsNullForAnythingElse(string path)
+    {
+        await using var site = await TestSite.StartAsync();
+
+        var host = await site.GetJsonAsync($"/host-bytes?file={Uri.EscapeDataString(path)}");
+
+        Assert.False(host.GetProperty("found").GetBoolean());
+    }
+
+    [Fact]
+    public async Task ReadClientBytes_DecodesPercentEncodedPaths_AndStripsTheBase()
+    {
+        using var dist = DistFolder.Create(baseFolder: "/docs")
+            .WithClientFile("_astro/a penguin.png", [137, 80, 78, 71]);
+        await using var site = await TestSite.StartAsync(dist);
+
+        var host = await site.GetJsonAsync("/host-bytes?file=%2Fdocs%2F_astro%2Fa%2520penguin.png");
+
+        Assert.True(host.GetProperty("found").GetBoolean());
+        Assert.Equal(4, host.GetProperty("length").GetInt32());
+        Assert.Equal([137, 80, 78, 71], host.GetProperty("head").EnumerateArray().Select(value => value.GetInt32()));
+    }
+
+    [Theory]
+    [InlineData("", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")]
+    [InlineData("97,98,99", "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")]
+    public async Task Sha256_HashesAnArrayBuffer(string bytes, string expected)
+    {
+        await using var site = await TestSite.StartAsync();
+
+        var result = await site.GetJsonAsync($"/sha256?bytes={bytes}");
+
+        Assert.Equal(expected, result.GetProperty("ofBuffer").GetString());
+    }
+
+    [Fact]
+    public async Task Sha256_ReturnsNullForAnythingButAnArrayBuffer()
+    {
+        await using var site = await TestSite.StartAsync();
+
+        var result = await site.GetJsonAsync("/sha256?bytes=97,98,99");
+
+        Assert.Equal(JsonValueKind.Null, result.GetProperty("ofView").ValueKind);
+        Assert.Equal(JsonValueKind.Null, result.GetProperty("ofText").ValueKind);
+        Assert.Equal(JsonValueKind.Null, result.GetProperty("ofNothing").ValueKind);
     }
 
     [Fact]

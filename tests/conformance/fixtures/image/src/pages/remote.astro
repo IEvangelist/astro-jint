@@ -1,0 +1,10 @@
+---
+import { Image } from "astro:assets";
+export const prerender = false;
+
+// Not part of the upstream fixture. The upstream page hard-codes an unsplash URL; this one takes the
+// address from the query string so a test can point it at a loopback origin instead.
+const src = Astro.url.searchParams.get("src") ?? "";
+---
+
+<Image src={src} alt="Cornwall" width={400} height={300} />

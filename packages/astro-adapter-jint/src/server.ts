@@ -1,27 +1,9 @@
 import { createApp } from 'astro/app/entrypoint';
 import { setGetEnv } from 'astro/env/setup';
-
-/**
- * What the ASP.NET Core host exposes on `globalThis.__astroJint` before this module is evaluated.
- * Everything is optional so the bundle also runs outside the host, for example in a smoke test.
- * The per-request members describe the request the engine is handling right now; an engine only
- * ever handles one request at a time.
- */
-interface AstroJintHost {
-  /** IP address of the connected client, for `Astro.clientAddress`. */
-  clientAddress?(): string | null;
-  /** `Astro.locals` for the current request, serialized as a JSON object. */
-  locals?(): string | null;
-  /** Value of an `astro:env` variable, or `null` when it is not defined. */
-  env?(name: string): string | null;
-  /** Text of a file below `dist/client`, addressed by its URL path, or `null` when there is none. */
-  readClientFile?(pathname: string): string | null;
-}
-
-const host = (globalThis as { __astroJint?: AstroJintHost }).__astroJint;
+import { host } from './host.js';
 
 if (host?.env) {
-  setGetEnv((name) => host.env!(name) ?? undefined);
+  setGetEnv((name) => host?.env?.(name) ?? undefined);
 }
 
 const app = createApp({ streaming: false });

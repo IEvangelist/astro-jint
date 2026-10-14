@@ -80,6 +80,15 @@ importers:
         specifier: workspace:*
         version: link:../../../../packages/astro-adapter-jint
 
+  tests/conformance/fixtures/image:
+    dependencies:
+      astro:
+        specifier: ^7.3.6
+        version: 7.3.8(@types/node@24.19.2)(yaml@2.9.1)
+      astro-adapter-jint:
+        specifier: workspace:*
+        version: link:../../../../packages/astro-adapter-jint
+
   tests/conformance/fixtures/jint-host-context:
     dependencies:
       astro:
@@ -135,6 +144,24 @@ importers:
         version: link:../../../../packages/astro-adapter-jint
 
   tests/conformance/fixtures/redirects:
+    dependencies:
+      astro:
+        specifier: ^7.3.6
+        version: 7.3.8(@types/node@24.19.2)(yaml@2.9.1)
+      astro-adapter-jint:
+        specifier: workspace:*
+        version: link:../../../../packages/astro-adapter-jint
+
+  tests/conformance/fixtures/session-state:
+    dependencies:
+      astro:
+        specifier: ^7.3.6
+        version: 7.3.8(@types/node@24.19.2)(yaml@2.9.1)
+      astro-adapter-jint:
+        specifier: workspace:*
+        version: link:../../../../packages/astro-adapter-jint
+
+  tests/conformance/fixtures/sessions:
     dependencies:
       astro:
         specifier: ^7.3.6

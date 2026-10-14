@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using Jint.Runtime;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -20,7 +21,7 @@ internal sealed partial class AstroApp : IAsyncDisposable
     private readonly ILogger<AstroApp> _logger;
     private readonly EnginePool<AstroEngineSlot> _pool;
 
-    public AstroApp(IOptions<AstroOptions> options, IHostEnvironment environment, ILoggerFactory loggerFactory)
+    public AstroApp(IOptions<AstroOptions> options, IHostEnvironment environment, ILoggerFactory loggerFactory, IDistributedCache sessionCache)
     {
         _options = options.Value;
         var logger = _logger = loggerFactory.CreateLogger<AstroApp>();
@@ -38,7 +39,8 @@ internal sealed partial class AstroApp : IAsyncDisposable
         Files = AstroStaticFileResolver.FromDirectory(ClientRoot, Manifest);
 
         var consoleSink = new LoggerConsoleSink(loggerFactory.CreateLogger(LoggerConsoleSink.Category));
-        var factory = new AstroEngineFactory(_options, entryPath, ReadClientFile, consoleSink);
+        var sessions = new AstroSessionStore(sessionCache, _options.SessionIdleTimeout, loggerFactory.CreateLogger<AstroSessionStore>());
+        var factory = new AstroEngineFactory(_options, entryPath, ReadClientFile, ReadClientBytes, sessions, consoleSink);
         _pool = new EnginePool<AstroEngineSlot>(_options.PoolSize, factory.CreateAsync, logger);
 
         LogLoaded(logger, Manifest.AstroVersion ?? "unknown", DistPath, Files.Count, _options.PoolSize);
@@ -147,6 +149,7 @@ internal sealed partial class AstroApp : IAsyncDisposable
         {
             slot.Context.ClientAddress = AstroHttpBridge.GetClientAddress(context);
             slot.Context.LocalsJson = localsJson;
+            slot.Context.Cancellation = token;
 
             using var message = await slot.Engine.WebApi.InvokeFetchHandlerAsync(request, token).ConfigureAwait(false);
             return await AstroHttpBridge.ReadResponseAsync(message, token).ConfigureAwait(false);
@@ -194,8 +197,15 @@ internal sealed partial class AstroApp : IAsyncDisposable
 
     // Used by the bundle to load the prerendered 404 and 500 pages. The path is the percent-encoded path of a URL.
     private string? ReadClientFile(string pathname) =>
+        FindClientFile(pathname) is { } path ? File.ReadAllText(path) : null;
+
+    // Used by the bundle's image endpoint to load the original of a local image. Addressed like ReadClientFile.
+    private byte[]? ReadClientBytes(string pathname) =>
+        FindClientFile(pathname) is { } path ? File.ReadAllBytes(path) : null;
+
+    private string? FindClientFile(string pathname) =>
         Files.TryGetFile(Uri.UnescapeDataString(pathname), out var relativePath)
-            ? File.ReadAllText(Path.Combine(ClientRoot, relativePath))
+            ? Path.Combine(ClientRoot, relativePath)
             : null;
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Hosting Astro {AstroVersion} from '{DistPath}': {StaticFileCount} static files, {PoolSize} JavaScript engines.")]

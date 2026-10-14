@@ -22,9 +22,13 @@ internal sealed class AstroRequestContext
 
     public string? LocalsJson { get; set; }
 
+    /// <summary>Ends the work that JavaScript asked the host for, such as reading a session, when the request is over.</summary>
+    public CancellationToken Cancellation { get; set; }
+
     public void Clear()
     {
         ClientAddress = null;
         LocalsJson = null;
+        Cancellation = CancellationToken.None;
     }
 }

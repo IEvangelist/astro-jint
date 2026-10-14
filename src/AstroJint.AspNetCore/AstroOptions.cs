@@ -49,4 +49,19 @@ public sealed class AstroOptions
 
     /// <summary>Values for the variables declared in the Astro config's <c>env.schema</c> (<c>astro:env</c>).</summary>
     public IDictionary<string, string?> Env { get; } = new Dictionary<string, string?>(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Decides which URLs JavaScript's <c>fetch</c> may request, for example the origin of a remote image that the
+    /// <c>/_image</c> endpoint downloads. <see langword="null"/> (the default) rejects every request, so that code
+    /// running in the engine cannot reach the network or the internal services of this machine by accident.
+    /// </summary>
+    public Func<Uri, bool>? FetchUrlFilter { get; set; }
+
+    /// <summary>
+    /// How long session data (<c>Astro.session</c>) is kept after it was last read or written. The data lives in the
+    /// <see cref="Microsoft.Extensions.Caching.Distributed.IDistributedCache"/> of the host, which is an in-memory
+    /// cache unless the application registers another one. Use <see cref="Timeout.InfiniteTimeSpan"/> to keep the
+    /// data until Astro deletes it. Defaults to 20 minutes, like ASP.NET Core's own session.
+    /// </summary>
+    public TimeSpan SessionIdleTimeout { get; set; } = TimeSpan.FromMinutes(20);
 }

@@ -190,6 +190,23 @@ public class AstroOptionsValidatorTests
         Assert.True(Validate(o => o.MaxRequestBodyBytes = -1).Failed);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public void SessionIdleTimeout_MustBePositive(int minutes)
+    {
+        var result = Validate(o => o.SessionIdleTimeout = TimeSpan.FromMinutes(minutes));
+
+        Assert.True(result.Failed);
+        Assert.Contains(nameof(AstroOptions.SessionIdleTimeout), result.FailureMessage);
+    }
+
+    [Fact]
+    public void SessionIdleTimeout_CanBeInfinite()
+    {
+        Assert.True(Validate(o => o.SessionIdleTimeout = Timeout.InfiniteTimeSpan).Succeeded);
+    }
+
     [Fact]
     public void AllFailuresAreReportedTogether()
     {

@@ -33,6 +33,11 @@ internal sealed class AstroOptionsValidator : IValidateOptions<AstroOptions>
             failures.Add($"{nameof(AstroOptions.MaxRequestBodyBytes)} must not be negative.");
         }
 
+        if (options.SessionIdleTimeout != Timeout.InfiniteTimeSpan && options.SessionIdleTimeout <= TimeSpan.Zero)
+        {
+            failures.Add($"{nameof(AstroOptions.SessionIdleTimeout)} must be positive, or Timeout.InfiniteTimeSpan.");
+        }
+
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }
 }

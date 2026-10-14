@@ -10,6 +10,12 @@ export type { AstroJintAllowedDomain, AstroJintManifest, AstroJintRoute } from '
 
 const ADAPTER_NAME = 'astro-adapter-jint';
 const SHARP_SERVICE_ENTRYPOINT = 'astro/assets/services/sharp';
+const IMAGE_ENDPOINT_ENTRYPOINT = `${ADAPTER_NAME}/image-endpoint`;
+// Astro resolves a driver relative to its own files, where a bare specifier is not found when the
+// package manager does not hoist this adapter. A file URL always is.
+const SESSION_DRIVER_ENTRYPOINT = new URL('./session-driver.js', import.meta.url);
+// What `sessionDrivers.memory()` returns, which the typings of `sessionDrivers` leave out.
+const MEMORY_SESSION_DRIVER_ENTRYPOINT = 'unstorage/drivers/memory';
 
 export interface JintAdapterOptions {
   /**
@@ -31,7 +37,7 @@ export default function jint(options: JintAdapterOptions = {}): AstroIntegration
   return {
     name: ADAPTER_NAME,
     hooks: {
-      'astro:config:setup': ({ config: userConfig, command, updateConfig }) => {
+      'astro:config:setup': ({ config: userConfig, command, logger, updateConfig }) => {
         // Without this a static site's redirects become meta-refresh pages that answer 200.
         // Left off, the runtime answers them with the configured 3xx status instead.
         updateConfig({ build: { redirects: false } });
@@ -42,7 +48,35 @@ export default function jint(options: JintAdapterOptions = {}): AstroIntegration
           updateConfig({ image: { service: passthroughImageService() } });
         }
 
+        // Sessions work out of the box, like they do with the official adapters. `session: false`
+        // turns them off, which also drops the session runtime from the bundle, and a driver the
+        // user configured is left alone.
+        const { session } = userConfig;
+        if (session !== false && !session?.driver) {
+          const onBuild = command === 'build';
+          logger.info(
+            onBuild
+              ? 'Enabling sessions with the distributed cache of the ASP.NET Core host'
+              : 'Enabling sessions with in-memory storage',
+          );
+          updateConfig({
+            session: {
+              // There is no host to talk to under `astro dev`, so sessions live in memory there.
+              driver: { entrypoint: onBuild ? SESSION_DRIVER_ENTRYPOINT : MEMORY_SESSION_DRIVER_ENTRYPOINT },
+              cookie: session?.cookie,
+              ttl: session?.ttl,
+            },
+          });
+        }
+
         if (command === 'build') {
+          // Astro's own image endpoints need a network route to the app or a file system.
+          if (userConfig.image.endpoint.entrypoint === undefined) {
+            updateConfig({
+              image: { endpoint: { route: userConfig.image.endpoint.route, entrypoint: IMAGE_ENDPOINT_ENTRYPOINT } },
+            });
+          }
+
           updateConfig({
             vite: {
               define: { 'process.env.NODE_ENV': '"production"' },

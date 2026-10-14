@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.Primitives;
 using Microsoft.Net.Http.Headers;
 
 namespace AstroJint.AspNetCore;
@@ -51,11 +52,30 @@ internal sealed class AstroStaticFilesMiddleware(RequestDelegate next, AstroApp 
             return;
         }
 
+        // ASP.NET Core ignores an If-Match it cannot parse and would serve the file; other file servers fail the precondition.
+        var request = context.Request;
+        if (!StringValues.IsNullOrEmpty(request.Headers.IfMatch) && request.GetTypedHeaders().IfMatch.Count == 0)
+        {
+            context.Response.StatusCode = StatusCodes.Status412PreconditionFailed;
+            return;
+        }
+
         var lastModified = file.LastWriteTimeUtc;
         var lastModifiedSeconds = new DateTimeOffset(lastModified.Ticks - (lastModified.Ticks % TimeSpan.TicksPerSecond), TimeSpan.Zero);
         var entityTag = new EntityTagHeaderValue($"\"{lastModifiedSeconds.ToFileTime() ^ file.Length:x}\"");
 
-        context.Response.Headers.CacheControl = match.Immutable ? ImmutableCacheControl : RevalidateCacheControl;
+        // Only responses that carry the file may be cached. A failed precondition (412) or range (416) must never be,
+        // least of all forever, and the status is not known until the file result has run.
+        context.Response.OnStarting(static state =>
+        {
+            var (response, cacheControl) = ((HttpResponse, string))state;
+            if (response.StatusCode is StatusCodes.Status200OK or StatusCodes.Status206PartialContent or StatusCodes.Status304NotModified)
+            {
+                response.Headers.CacheControl = cacheControl;
+            }
+
+            return Task.CompletedTask;
+        }, (context.Response, match.Immutable ? ImmutableCacheControl : RevalidateCacheControl));
 
         var result = Results.File(
             file.FullName,

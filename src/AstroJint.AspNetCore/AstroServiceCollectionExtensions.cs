@@ -23,6 +23,9 @@ public static class AstroServiceCollectionExtensions
         }
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<AstroOptions>, AstroOptionsValidator>());
+
+        // Where Astro.session keeps its data. A cache that the application registers wins, in either order.
+        services.AddDistributedMemoryCache();
         services.TryAddSingleton<AstroApp>();
         services.AddHostedService<AstroWarmupService>();
         return services;
