@@ -5,7 +5,8 @@ namespace AstroJint.Conformance.Netlify;
 /// <summary>
 /// Port of <c>packages/integrations/netlify/test/functions/edge-middleware.test.ts</c>, on the consolidated
 /// <c>netlify-functions</c> fixture (the <c>middleware</c> fixture of upstream without its <c>node:https</c> import and its
-/// image page; the import has a fixture of its own, <c>netlify-node-builtin</c>, which the last test uses).
+/// image page). The import has a fixture of its own, <c>netlify-node-builtin</c>: the build-time test runs on it too, as
+/// upstream only builds the fixture with the import, and the last test requests it.
 /// <para>
 /// Only the <c>middlewareMode: classic</c> tests apply: a Netlify edge function is a platform feature, and the middleware of
 /// this host always runs in the host's request pipeline, so the two <c>middlewareMode: edge</c> tests (one is skipped
@@ -39,10 +40,12 @@ public class EdgeMiddlewareTests(SiteHost sites)
         Assert.Equal("Middleware", page.QuerySelector("h1")?.TextContent);
     }
 
-    [Fact(DisplayName = "middlewareMode: classic: applies middleware to static files at build-time")]
-    public async Task Classic_AppliesMiddlewareToStaticFilesAtBuildTime()
+    [Theory(DisplayName = "middlewareMode: classic: applies middleware to static files at build-time")]
+    [InlineData(Fixture)]
+    [InlineData("netlify-node-builtin")]
+    public async Task Classic_AppliesMiddlewareToStaticFilesAtBuildTime(string fixture)
     {
-        var site = await sites.GetAsync(Fixture);
+        var site = await sites.GetAsync(fixture);
 
         var prerenderedPage = await File.ReadAllTextAsync(Path.Combine(site.DistPath, "client", "prerender", "index.html"));
         Assert.Contains("<title>Middleware</title>", prerenderedPage);
