@@ -14,6 +14,16 @@ const factories = {
       },
     },
   }),
+
+  // Registers an image service the way an integration does, from `astro:config:setup`, instead of through `image.service`.
+  'cf-image-service': ({ entrypoint }) => ({
+    name: 'conformance-cf-image-service',
+    hooks: {
+      'astro:config:setup': ({ updateConfig }) => {
+        updateConfig({ image: { service: { entrypoint } } });
+      },
+    },
+  }),
 };
 
 /** @param {{ conformanceIntegration: string } & Record<string, unknown>} descriptor */

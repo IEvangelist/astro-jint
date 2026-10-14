@@ -23,4 +23,16 @@ internal static class CfPages
 
     /// <summary>The cache provider reports whether its <c>onRequest</c> is given a <c>waitUntil</c> function.</summary>
     public static readonly object WaitUntilProbe = new { cache = new { provider = new { config = new { waitUntilProbe = true } } } };
+
+    /// <summary>The image service <c>src/image-service.ts</c>, which does not use Sharp: its transform puts a marker in front of the bytes.</summary>
+    public static readonly object CustomImageService = new { image = new { service = new { entrypoint = "./src/image-service.ts" } } };
+
+    /// <summary>The image service <c>src/sharp-image-service.ts</c>, which is Astro's Sharp service with its own markup.</summary>
+    public static readonly object SharpImageService = new { image = new { service = new { entrypoint = "./src/sharp-image-service.ts" } } };
+
+    /// <summary>The image service <c>src/image-service.ts</c>, set by an integration instead of by <c>image.service</c>.</summary>
+    public static readonly object ImageServiceFromIntegration = new
+    {
+        integrations = new[] { new { conformanceIntegration = "cf-image-service", entrypoint = "./src/image-service.ts" } },
+    };
 }

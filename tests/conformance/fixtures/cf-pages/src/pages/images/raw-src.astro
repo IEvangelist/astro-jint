@@ -1,0 +1,9 @@
+---
+import { Image } from 'astro:assets';
+import kept from '../../assets/kept.jpg';
+
+export const prerender = true;
+---
+
+<Image src={kept} width={50} alt="optimized" />
+<img id="raw" src={kept.src} alt="original" />
