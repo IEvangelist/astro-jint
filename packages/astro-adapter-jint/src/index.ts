@@ -32,6 +32,10 @@ export default function jint(options: JintAdapterOptions = {}): AstroIntegration
     name: ADAPTER_NAME,
     hooks: {
       'astro:config:setup': ({ config: userConfig, command, updateConfig }) => {
+        // Without this a static site's redirects become meta-refresh pages that answer 200.
+        // Left off, the runtime answers them with the configured 3xx status instead.
+        updateConfig({ build: { redirects: false } });
+
         // The default Sharp service drags node:child_process, node:os and native bindings into the
         // server bundle. A service the user configured explicitly is left alone.
         if (userConfig.image.service.entrypoint === SHARP_SERVICE_ENTRYPOINT) {
