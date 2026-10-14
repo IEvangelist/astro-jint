@@ -6,7 +6,7 @@ import type { AstroConfig, AstroIntegration, IntegrationResolvedRoute } from 'as
 import { passthroughImageService } from 'astro/config';
 import { MANIFEST_FILE_NAME, MANIFEST_VERSION, type AstroJintManifest } from './manifest.js';
 
-export type { AstroJintManifest, AstroJintRoute } from './manifest.js';
+export type { AstroJintAllowedDomain, AstroJintManifest, AstroJintRoute } from './manifest.js';
 
 const ADAPTER_NAME = 'astro-adapter-jint';
 const SHARP_SERVICE_ENTRYPOINT = 'astro/assets/services/sharp';
@@ -114,6 +114,7 @@ function createManifest(config: AstroConfig, routes: IntegrationResolvedRoute[])
     client: relativeToOutDir(config.build.client),
     server,
     entry: `${server}/${config.build.serverEntry}`,
+    allowedDomains: config.security.allowedDomains.map(({ protocol, hostname, port }) => ({ protocol, hostname, port })),
     routes: routes.map((route) => ({
       route: route.pattern,
       type: route.type,

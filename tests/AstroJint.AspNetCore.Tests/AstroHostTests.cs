@@ -1,6 +1,9 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -128,6 +131,31 @@ public class AstroHostTests
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal("not found", await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task Console_WritesToTheLogUnderItsOwnCategory()
+    {
+        await using var site = await TestSite.StartAsync(
+            configureServices: services => services.AddLogging(logging => logging.SetMinimumLevel(LogLevel.Debug)));
+
+        using var response = await site.Client.GetAsync("/console");
+
+        Assert.Equal("logged", await response.Content.ReadAsStringAsync());
+        Assert.Equal(
+            [
+                (LogLevel.Debug, "debug line"),
+                (LogLevel.Information, "log line"),
+                (LogLevel.Information, "info line"),
+                (LogLevel.Warning, "warn line"),
+                (LogLevel.Error, "error line"),
+                (LogLevel.Information, "cart has 3 items"),
+                (LogLevel.Information, "group"),
+                (LogLevel.Information, "  inside"),
+            ],
+            site.Logs.Entries
+                .Where(entry => entry.Category == "AstroJint.Console")
+                .Select(entry => (entry.Level, entry.Message)));
     }
 
     [Fact]
@@ -269,6 +297,37 @@ public class AstroHostTests
     }
 
     [Fact]
+    public async Task RequestBodies_ThatEndEarly_ReturnTheStatusOfTheFailureWithoutAnError()
+    {
+        await using var site = await TestSite.StartAsync(configureApp: app => app.Use((context, next) =>
+        {
+            context.Request.Body = new FailingBody(new BadHttpRequestException("Unexpected end of request content.", StatusCodes.Status400BadRequest));
+            return next(context);
+        }));
+
+        using var response = await site.Client.PostAsync("/echo", new StringContent("{\"partial\":"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.DoesNotContain(site.Logs.Entries, entry => entry.Level >= LogLevel.Error);
+    }
+
+    [Fact]
+    public async Task RequestBodies_OfAClientThatLeft_AreDroppedWithoutAnError()
+    {
+        await using var site = await TestSite.StartAsync(configureApp: app => app.Use((context, next) =>
+        {
+            context.Request.Body = new FailingBody(new IOException("The client reset the request stream."));
+            context.RequestAborted = new CancellationToken(canceled: true);
+            return next(context);
+        }));
+
+        using var response = await site.Client.PostAsync("/echo", new StringContent("{\"partial\":"));
+
+        Assert.Equal(0, site.Astro.Pool.Reserved);
+        Assert.DoesNotContain(site.Logs.Entries, entry => entry.Level >= LogLevel.Error);
+    }
+
+    [Fact]
     public async Task WarmUp_FillsThePoolInTheBackground()
     {
         await using var site = await TestSite.StartAsync(configure: options =>
@@ -312,5 +371,37 @@ public class AstroHostTests
             Assert.True(DateTime.UtcNow < deadline, "The condition was not met in time.");
             await Task.Delay(25);
         }
+    }
+
+    /// <summary>A request body that fails the way Kestrel's does when the client leaves in the middle of it.</summary>
+    private sealed class FailingBody(Exception failure) : Stream
+    {
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) => throw failure;
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) => throw failure;
+
+        public override void Flush()
+        {
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 }

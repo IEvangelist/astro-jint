@@ -50,6 +50,18 @@ export default {
       case '/redirect':
         return new Response(null, { status: 302, headers: { location: '/target' } });
 
+      case '/console':
+        console.debug('debug line');
+        console.log('log line');
+        console.info('info line');
+        console.warn('warn line');
+        console.error('error line');
+        console.log('%s has %d items', 'cart', 3);
+        console.group('group');
+        console.log('inside');
+        console.groupEnd();
+        return new Response('logged');
+
       case '/status':
         return new Response(query.get('body'), {
           status: Number(query.get('code') ?? 200),

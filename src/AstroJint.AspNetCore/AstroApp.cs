@@ -20,10 +20,10 @@ internal sealed partial class AstroApp : IAsyncDisposable
     private readonly ILogger<AstroApp> _logger;
     private readonly EnginePool<AstroEngineSlot> _pool;
 
-    public AstroApp(IOptions<AstroOptions> options, IHostEnvironment environment, ILogger<AstroApp> logger)
+    public AstroApp(IOptions<AstroOptions> options, IHostEnvironment environment, ILoggerFactory loggerFactory)
     {
         _options = options.Value;
-        _logger = logger;
+        var logger = _logger = loggerFactory.CreateLogger<AstroApp>();
 
         DistPath = Path.GetFullPath(_options.DistPath, environment.ContentRootPath);
         Manifest = AstroManifest.Load(DistPath);
@@ -37,7 +37,8 @@ internal sealed partial class AstroApp : IAsyncDisposable
 
         Files = AstroStaticFileResolver.FromDirectory(ClientRoot, Manifest);
 
-        var factory = new AstroEngineFactory(_options, entryPath, ReadClientFile);
+        var consoleSink = new LoggerConsoleSink(loggerFactory.CreateLogger(LoggerConsoleSink.Category));
+        var factory = new AstroEngineFactory(_options, entryPath, ReadClientFile, consoleSink);
         _pool = new EnginePool<AstroEngineSlot>(_options.PoolSize, factory.CreateAsync, logger);
 
         LogLoaded(logger, Manifest.AstroVersion ?? "unknown", DistPath, Files.Count, _options.PoolSize);
@@ -68,7 +69,7 @@ internal sealed partial class AstroApp : IAsyncDisposable
         try
         {
             request = await AstroHttpBridge
-                .CreateRequestAsync(context.Request, _options.MaxRequestBodyBytes, context.RequestAborted)
+                .CreateRequestAsync(context.Request, _options.MaxRequestBodyBytes, context.RequestAborted, Manifest.AllowedDomains)
                 .ConfigureAwait(false);
         }
         catch (AstroRequestBodyTooLargeException)
@@ -76,7 +77,13 @@ internal sealed partial class AstroApp : IAsyncDisposable
             context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
             return;
         }
-        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        catch (BadHttpRequestException ex)
+        {
+            // The body cannot be read to its end, for example because the client left halfway through an upload.
+            context.Response.StatusCode = ex.StatusCode;
+            return;
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or IOException && context.RequestAborted.IsCancellationRequested)
         {
             return;
         }

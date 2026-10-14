@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Primitives;
 
 namespace AstroJint.AspNetCore.Tests;
@@ -47,6 +48,32 @@ public class AstroHttpBridgeTests
     }
 
     [Fact]
+    public async Task CreateRequest_ReadsABackslashThatTheClientSentAsASlash()
+    {
+        var context = CreateContext();
+        context.Request.Path = "/\\example.com/press";
+        context.Request.QueryString = new QueryString("?x=1");
+        context.Features.GetRequiredFeature<IHttpRequestFeature>().RawTarget = "/\\example.com/press?x=1";
+
+        using var request = await AstroHttpBridge.CreateRequestAsync(context.Request, 1024, CancellationToken.None);
+
+        Assert.Equal("//example.com/press", request.RequestUri!.AbsolutePath);
+        Assert.Equal("?x=1", request.RequestUri.Query);
+    }
+
+    [Fact]
+    public async Task CreateRequest_KeepsABackslashThatTheClientSentEncoded()
+    {
+        var context = CreateContext();
+        context.Request.Path = "/a\\b";
+        context.Features.GetRequiredFeature<IHttpRequestFeature>().RawTarget = "/a%5Cb";
+
+        using var request = await AstroHttpBridge.CreateRequestAsync(context.Request, 1024, CancellationToken.None);
+
+        Assert.Equal("/a%5Cb", request.RequestUri!.AbsolutePath);
+    }
+
+    [Fact]
     public async Task CreateRequest_UsesLocalhostWhenThereIsNoHost()
     {
         var context = CreateContext();
@@ -56,6 +83,119 @@ public class AstroHttpBridgeTests
         using var request = await AstroHttpBridge.CreateRequestAsync(context.Request, 1024, CancellationToken.None);
 
         Assert.Equal("http://localhost/", request.RequestUri!.AbsoluteUri);
+    }
+
+    [Fact]
+    public async Task CreateRequest_UsesLocalhostAndTheServerPortWhenThereIsNoHost()
+    {
+        var context = CreateContext();
+        context.Request.Host = default;
+        context.Request.Scheme = "http";
+        context.Connection.LocalPort = 5000;
+
+        using var request = await AstroHttpBridge.CreateRequestAsync(context.Request, 1024, CancellationToken.None);
+
+        Assert.Equal("http://localhost:5000/", request.RequestUri!.AbsoluteUri);
+    }
+
+    [Fact]
+    public async Task CreateRequest_FallsBackToLocalhostWhenTheHostMakesNoUrl()
+    {
+        var context = CreateContext();
+        context.Request.Host = new HostString("exam ple.test");
+        context.Connection.LocalPort = 5000;
+
+        using var request = await AstroHttpBridge.CreateRequestAsync(context.Request, 1024, CancellationToken.None);
+
+        Assert.Equal("https://localhost:5000/", request.RequestUri!.AbsoluteUri);
+    }
+
+    [Fact]
+    public async Task CreateRequest_TrustsTheHostThatAspNetCoreResolvedWhenThereAreNoAllowedDomains()
+    {
+        var context = CreateContext();
+        context.Request.Host = new HostString("anything.test", 9000);
+        context.Request.Headers["X-Forwarded-Host"] = "ignored.test";
+
+        using var request = await AstroHttpBridge.CreateRequestAsync(context.Request, 1024, CancellationToken.None, []);
+
+        Assert.Equal("https://anything.test:9000/", request.RequestUri!.AbsoluteUri);
+    }
+
+    [Fact]
+    public async Task CreateRequest_UsesAHostThatMatchesAnAllowedDomain()
+    {
+        var context = CreateContext();
+        context.Request.Host = new HostString("legitimate.example.com");
+        context.Connection.LocalPort = 5000;
+
+        using var request = await AstroHttpBridge.CreateRequestAsync(
+            context.Request, 1024, CancellationToken.None, [new() { Hostname = "legitimate.example.com" }]);
+
+        Assert.Equal("https://legitimate.example.com/", request.RequestUri!.AbsoluteUri);
+    }
+
+    [Theory]
+    [InlineData("attacker.example.net")]
+    [InlineData("legitimate.example.com/admin")]
+    [InlineData("legitimate.example.com:1:2")]
+    public async Task CreateRequest_ReplacesAHostThatMatchesNoAllowedDomainWithLocalhostAndTheServerPort(string host)
+    {
+        var context = CreateContext();
+        context.Request.Host = new HostString(host);
+        context.Request.Path = "/page";
+        context.Connection.LocalPort = 5000;
+
+        using var request = await AstroHttpBridge.CreateRequestAsync(
+            context.Request, 1024, CancellationToken.None, [new() { Hostname = "legitimate.example.com" }]);
+
+        Assert.Equal("https://localhost:5000/page", request.RequestUri!.AbsoluteUri);
+    }
+
+    [Fact]
+    public async Task CreateRequest_ReplacesAHostThatMatchesNoAllowedDomainWithLocalhostWhenTheServerPortIsUnknown()
+    {
+        var context = CreateContext();
+        context.Request.Host = new HostString("attacker.example.net");
+
+        using var request = await AstroHttpBridge.CreateRequestAsync(
+            context.Request, 1024, CancellationToken.None, [new() { Hostname = "legitimate.example.com" }]);
+
+        Assert.Equal("https://localhost/", request.RequestUri!.AbsoluteUri);
+    }
+
+    [Fact]
+    public async Task CreateRequest_ChecksTheHostAgainstTheForwardedProtocolOfAProtocolSpecificAllowedDomain()
+    {
+        AstroAllowedDomain[] allowed = [new() { Hostname = "example.test", Protocol = "https" }];
+
+        var behindProxy = CreateContext();
+        behindProxy.Request.Scheme = "http";
+        behindProxy.Request.Host = new HostString("example.test");
+        behindProxy.Request.Headers["X-Forwarded-Proto"] = "https, http";
+        using var trusted = await AstroHttpBridge.CreateRequestAsync(behindProxy.Request, 1024, CancellationToken.None, allowed);
+
+        var direct = CreateContext();
+        direct.Request.Scheme = "http";
+        direct.Request.Host = new HostString("example.test");
+        using var untrusted = await AstroHttpBridge.CreateRequestAsync(direct.Request, 1024, CancellationToken.None, allowed);
+
+        Assert.Equal("http://example.test/", trusted.RequestUri!.AbsoluteUri);
+        Assert.Equal("http://localhost/", untrusted.RequestUri!.AbsoluteUri);
+    }
+
+    [Fact]
+    public async Task CreateRequest_PassesForwardedHeadersOnToAstro()
+    {
+        var context = CreateContext();
+        context.Request.Headers["X-Forwarded-Host"] = "abc.xyz:444";
+        context.Request.Headers["X-Forwarded-Proto"] = "https";
+
+        using var request = await AstroHttpBridge.CreateRequestAsync(
+            context.Request, 1024, CancellationToken.None, [new() { Hostname = "abc.xyz", Port = "444" }]);
+
+        Assert.Equal("abc.xyz:444", Assert.Single(request.Headers.GetValues("X-Forwarded-Host")));
+        Assert.Equal("https", Assert.Single(request.Headers.GetValues("X-Forwarded-Proto")));
     }
 
     [Fact]

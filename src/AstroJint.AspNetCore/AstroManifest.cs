@@ -32,6 +32,9 @@ internal sealed class AstroManifest
 
     public string Entry { get; init; } = "server/entry.mjs";
 
+    /// <summary><c>security.allowedDomains</c> from the Astro config. When it has entries, only a matching <c>Host</c> is trusted.</summary>
+    public IReadOnlyList<AstroAllowedDomain> AllowedDomains { get; init; } = [];
+
     public IReadOnlyList<AstroManifestRoute> Routes { get; init; } = [];
 
     public static AstroManifest Load(string distPath)
@@ -54,6 +57,17 @@ internal sealed class AstroManifest
                 $"'{file}' has manifest version {manifest.Version}, but this host supports version {SupportedVersion}. " +
                 "Use matching versions of astro-adapter-jint and AstroJint.AspNetCore.");
     }
+}
+
+/// <summary>An entry of <c>security.allowedDomains</c>. A part that is not set matches anything.</summary>
+internal sealed class AstroAllowedDomain
+{
+    public string? Protocol { get; init; }
+
+    /// <summary>A host name, or a pattern that starts with <c>*.</c> (one subdomain level) or <c>**.</c> (any number of levels).</summary>
+    public string? Hostname { get; init; }
+
+    public string? Port { get; init; }
 }
 
 internal sealed class AstroManifestRoute

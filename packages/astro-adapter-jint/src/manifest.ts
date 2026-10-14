@@ -30,5 +30,16 @@ export interface AstroJintManifest {
   server: string;
   /** Server entry module, relative to the folder that holds the manifest. */
   entry: string;
+  /**
+   * `security.allowedDomains` from the Astro config. With entries, the host only trusts a `Host` header that
+   * matches one of them (as the Node adapter does) and Astro only applies matching `X-Forwarded-*` headers.
+   */
+  allowedDomains: AstroJintAllowedDomain[];
   routes: AstroJintRoute[];
+}
+
+export interface AstroJintAllowedDomain {
+  protocol?: string;
+  hostname?: string;
+  port?: string;
 }

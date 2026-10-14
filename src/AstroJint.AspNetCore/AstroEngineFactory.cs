@@ -3,6 +3,7 @@ using Jint;
 using Jint.Native;
 using Jint.Native.Object;
 using Jint.Runtime.Interop;
+using Jint.WebApi;
 
 namespace AstroJint.AspNetCore;
 
@@ -10,7 +11,8 @@ namespace AstroJint.AspNetCore;
 internal sealed class AstroEngineFactory(
     AstroOptions options,
     string entryPath,
-    Func<string, string?> readClientFile)
+    Func<string, string?> readClientFile,
+    ConsoleSink consoleSink)
 {
     // Error.stack in Jint starts with the frames, but Astro's error pages (and most libraries) expect the
     // "Name: message" line first. See docs/spikes/02-jint-astro-runtime.md.
@@ -44,6 +46,7 @@ internal sealed class AstroEngineFactory(
         var engine = new Engine(engineOptions =>
         {
             engineOptions.UseWebApis();
+            engineOptions.UseConsole(consoleSink);
             engineOptions.UseFetch(fetch => fetch.UrlFilter = _ => false);
             engineOptions.TimeZone = options.TimeZone;
             if (options.MemoryLimitBytes is { } limit)

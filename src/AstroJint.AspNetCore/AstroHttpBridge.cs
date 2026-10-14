@@ -1,6 +1,7 @@
 using System.Buffers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Primitives;
 
 namespace AstroJint.AspNetCore;
@@ -19,11 +20,21 @@ internal static class AstroHttpBridge
         "Connection", "Keep-Alive", "Proxy-Connection", "TE", "Trailer", "Transfer-Encoding", "Upgrade", "Content-Length", "Expect",
     };
 
-    public static async Task<HttpRequestMessage> CreateRequestAsync(HttpRequest source, long maxBodyBytes, CancellationToken cancellationToken)
+    /// <param name="source">The request to translate.</param>
+    /// <param name="maxBodyBytes">The largest request body to buffer.</param>
+    /// <param name="cancellationToken">Cancels reading the request body.</param>
+    /// <param name="allowedDomains">
+    /// <c>security.allowedDomains</c> of the site. With entries, only a <c>Host</c> that matches one of them shapes the
+    /// URL, and any other is replaced by <c>localhost</c> with the port of the server, as the Node adapter does.
+    /// Without, the host is the one ASP.NET Core resolved for the request (see <c>HostFiltering</c> and <c>UseForwardedHeaders</c>).
+    /// </param>
+    public static async Task<HttpRequestMessage> CreateRequestAsync(
+        HttpRequest source,
+        long maxBodyBytes,
+        CancellationToken cancellationToken,
+        IReadOnlyList<AstroAllowedDomain>? allowedDomains = null)
     {
-        var host = source.Host.HasValue ? source.Host : new HostString("localhost");
-        var url = UriHelper.BuildAbsolute(source.Scheme, host, source.PathBase, source.Path, source.QueryString);
-        var request = new HttpRequestMessage(new HttpMethod(source.Method), url);
+        var request = new HttpRequestMessage(new HttpMethod(source.Method), BuildUrl(source, allowedDomains));
 
         try
         {
@@ -102,6 +113,47 @@ internal static class AstroHttpBridge
         {
             await target.Body.WriteAsync(response.Body, context.RequestAborted).ConfigureAwait(false);
         }
+    }
+
+    private static Uri BuildUrl(HttpRequest source, IReadOnlyList<AstroAllowedDomain>? allowedDomains)
+    {
+        var path = GetPath(source);
+        var fallback = new HostString(source.HttpContext.Connection.LocalPort is > 0 and var port ? $"localhost:{port}" : "localhost");
+
+        HostString host;
+        if (allowedDomains is { Count: > 0 })
+        {
+            var forwardedProtocol = AstroHostValidator.ValidateForwardedProtocol(
+                AstroHostValidator.GetFirstForwardedValue(source.Headers["X-Forwarded-Proto"]), allowedDomains);
+            var trusted = AstroHostValidator.ValidateHost(source.Host.Value, forwardedProtocol ?? source.Scheme, allowedDomains);
+            host = trusted is null ? fallback : new HostString(trusted);
+        }
+        else
+        {
+            host = source.Host.HasValue ? source.Host : fallback;
+        }
+
+        var url = UriHelper.BuildAbsolute(source.Scheme, host, source.PathBase, path, source.QueryString);
+        return Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            ? uri
+            : new Uri(UriHelper.BuildAbsolute(source.Scheme, fallback, source.PathBase, path, source.QueryString));
+    }
+
+    // A URL parser reads a backslash in the path of an http(s) URL as a slash, so Astro sees //example.com for the target
+    // /\example.com, as it does behind the Node adapter. Kestrel keeps the backslash in Path, which would become %5C and
+    // make a page of its own of it. Only a backslash that the client wrote as one is folded: %5C stays a character of a segment.
+    private static PathString GetPath(HttpRequest source)
+    {
+        var path = source.Path;
+        if (!path.HasValue || !path.Value.Contains('\\'))
+        {
+            return path;
+        }
+
+        var rawTarget = source.HttpContext.Features.Get<IHttpRequestFeature>()?.RawTarget ?? "";
+        var query = rawTarget.IndexOf('?');
+        var rawPath = query < 0 ? rawTarget : rawTarget[..query];
+        return rawPath.Contains('\\') ? new PathString(path.Value.Replace('\\', '/')) : path;
     }
 
     /// <summary>The address Astro reports as <c>Astro.clientAddress</c>.</summary>
