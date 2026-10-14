@@ -1,0 +1,13 @@
+---
+import Base from '../../layouts/Base.astro';
+import { products } from '../../data/products';
+---
+<Base title="Products">
+  <h1>Products</h1>
+  <p>This list is generated at build time. Every product page is rendered on demand.</p>
+  <ul>
+    {products.map((product) => (
+      <li><a href={`/products/${product.id}`}>{product.name}</a></li>
+    ))}
+  </ul>
+</Base>

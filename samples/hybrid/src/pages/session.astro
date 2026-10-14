@@ -1,0 +1,16 @@
+---
+export const prerender = false;
+
+import Base from '../layouts/Base.astro';
+
+const visits = ((await Astro.session?.get('visits')) ?? 0) + 1;
+Astro.session?.set('visits', visits);
+---
+<Base title="Session">
+  <h1>Session</h1>
+  <p>You loaded this page <strong id="visits">{visits}</strong> time(s) in this session.</p>
+  <p>
+    The session data lives in the <code>IDistributedCache</code> of the ASP.NET Core host, so it does not matter which
+    JavaScript engine renders the next request.
+  </p>
+</Base>

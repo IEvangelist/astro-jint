@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>HybridHost</RootNamespace>
+    <!-- One engine per core scales best with the server garbage collector (docs/spikes/03-engine-pool-performance.md). -->
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <SiteDirectory>$(MSBuildThisFileDirectory)..\hybrid\</SiteDirectory>
+    <RepositoryRoot>$(MSBuildThisFileDirectory)..\..\</RepositoryRoot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AstroJint.AspNetCore\AstroJint.AspNetCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <SiteInput Include="$(SiteDirectory)src\**;$(SiteDirectory)public\**;$(SiteDirectory)astro.config.mjs;$(SiteDirectory)package.json" />
+    <SiteInput Include="$(RepositoryRoot)packages\astro-adapter-jint\src\**" />
+  </ItemGroup>
+
+  <!-- Builds the Astro site when its sources changed, so that running the host always serves an up-to-date site. -->
+  <Target Name="BuildAstroSite" BeforeTargets="BeforeBuild" Inputs="@(SiteInput)" Outputs="$(SiteDirectory)dist\astro-jint.json" Condition="'$(SkipAstroSiteBuild)' != 'true'">
+    <Warning Condition="!Exists('$(SiteDirectory)node_modules')" Text="The dependencies of the Astro site are not installed. Run 'pnpm install' in '$(RepositoryRoot)', then build again." />
+    <Exec Condition="Exists('$(SiteDirectory)node_modules')" Command="pnpm --filter hybrid... build" WorkingDirectory="$(RepositoryRoot)" />
+  </Target>
+
+  <!-- The published host serves the site from the 'astro' folder next to it (the default DistPath). -->
+  <Target Name="CopyAstroSiteToPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <AstroSiteFile Include="$(SiteDirectory)dist\**" />
+    </ItemGroup>
+    <Copy SourceFiles="@(AstroSiteFile)" DestinationFiles="@(AstroSiteFile->'$(PublishDir)astro\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

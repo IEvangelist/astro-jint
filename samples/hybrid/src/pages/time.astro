@@ -1,11 +1,27 @@
 ---
 export const prerender = false;
+
+import Base from '../layouts/Base.astro';
+
 const renderedAt = new Date().toISOString();
 ---
-<html lang="en">
-  <head><meta charset="utf-8" /><title>Time</title></head>
-  <body>
-    <h1>On-demand time</h1>
-    <p>Rendered at {renderedAt}</p>
-  </body>
-</html>
+<Base title="Time">
+  <h1>On-demand time</h1>
+  <p>Rendered at <time id="rendered-at" datetime={renderedAt}>{renderedAt}</time></p>
+  <p>Request id: <code id="request-id">{Astro.locals.traceId}</code></p>
+  <p>
+    <button id="ask" type="button">Ask the API</button>
+    <output id="api-time"></output>
+  </p>
+
+  <script>
+    const output = document.querySelector('#api-time');
+    document.querySelector('#ask')?.addEventListener('click', async () => {
+      const response = await fetch('/api/time');
+      const { now } = await response.json();
+      if (output) {
+        output.textContent = now;
+      }
+    });
+  </script>
+</Base>

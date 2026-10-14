@@ -1,0 +1,48 @@
+---
+import '../styles/site.css';
+
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+const links = [
+  ['/', 'Home'],
+  ['/about', 'About'],
+  ['/blog', 'Blog'],
+  ['/products', 'Products'],
+  ['/time', 'Time'],
+  ['/contact', 'Contact'],
+  ['/session', 'Session'],
+  ['/me', 'Me'],
+  ['/diagnostics', 'Diagnostics'],
+];
+const mode = Astro.isPrerendered ? 'static' : 'on-demand';
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title} | Hybrid Astro on Jint</title>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/">Hybrid Astro on Jint</a>
+      <nav>
+        {links.map(([href, label]) => (
+          <a href={href} aria-current={Astro.url.pathname.replace(/\/$/, '') === href.replace(/\/$/, '') ? 'page' : undefined}>{label}</a>
+        ))}
+      </nav>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer>
+      <span class="badge" data-mode={mode}>
+        {mode === 'static' ? 'Generated at build time' : 'Rendered on demand in Jint'}
+      </span>
+    </footer>
+  </body>
+</html>

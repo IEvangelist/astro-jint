@@ -1,0 +1,48 @@
+---
+export const prerender = false;
+
+import Base from '../layouts/Base.astro';
+
+const errors: { name?: string; message?: string } = {};
+let name = '';
+let message = '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  name = String(form.get('name') ?? '').trim();
+  message = String(form.get('message') ?? '').trim();
+
+  if (!name) {
+    errors.name = 'Tell us your name.';
+  }
+  if (message.length < 5) {
+    errors.message = 'The message needs at least five characters.';
+  }
+
+  if (!errors.name && !errors.message) {
+    Astro.cookies.set('contact-name', name, { path: '/', httpOnly: true, sameSite: 'lax', maxAge: 600 });
+    return Astro.redirect('/contact', 303);
+  }
+
+  Astro.response.status = 400;
+}
+
+const thanks = Astro.cookies.get('contact-name')?.value;
+---
+<Base title="Contact">
+  <h1>Contact</h1>
+  {thanks && <p id="thanks">Thanks for your message, {thanks}!</p>}
+  <form method="post" action="/contact">
+    <label>
+      Name
+      <input name="name" value={name} />
+    </label>
+    {errors.name && <p class="error" id="name-error">{errors.name}</p>}
+    <label>
+      Message
+      <textarea name="message" rows="4">{message}</textarea>
+    </label>
+    {errors.message && <p class="error" id="message-error">{errors.message}</p>}
+    <button type="submit">Send</button>
+  </form>
+</Base>

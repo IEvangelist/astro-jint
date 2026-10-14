@@ -1,0 +1,100 @@
+:root {
+  color-scheme: light dark;
+  --accent: #0a6cff;
+  --muted: color-mix(in srgb, currentColor 60%, transparent);
+  --border: color-mix(in srgb, currentColor 18%, transparent);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  line-height: 1.55;
+}
+
+body {
+  margin: 0;
+}
+
+header,
+main,
+footer {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 1rem 1.25rem;
+}
+
+header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  font-weight: 700;
+  text-decoration: none;
+}
+
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+}
+
+nav a {
+  text-decoration: none;
+  color: var(--muted);
+}
+
+nav a[aria-current='page'] {
+  color: inherit;
+  font-weight: 600;
+}
+
+a {
+  color: var(--accent);
+}
+
+label {
+  display: block;
+  margin: 0.75rem 0;
+}
+
+input,
+textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  font: inherit;
+}
+
+.error {
+  margin: 0;
+  color: #c0262d;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.1rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.badge[data-mode='on-demand'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1.5rem;
+}
+
+dt {
+  font-weight: 600;
+}
+
+dd {
+  margin: 0;
+}

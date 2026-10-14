@@ -1,10 +1,35 @@
 ---
+import Base from '../layouts/Base.astro';
+import ServerClock from '../components/ServerClock.astro';
+
 const builtAt = new Date().toISOString();
 ---
-<html lang="en">
-  <head><meta charset="utf-8" /><title>Home</title></head>
-  <body>
-    <h1>Prerendered home</h1>
-    <p>Built at {builtAt}</p>
-  </body>
-</html>
+<Base title="Home">
+  <h1>Hybrid Astro on Jint</h1>
+  <p>
+    This page was generated at build time:
+    <time id="built-at" datetime={builtAt}>{builtAt}</time>. The host serves it as a file.
+  </p>
+
+  <ServerClock server:defer>
+    <p slot="fallback">Loading the server time...</p>
+  </ServerClock>
+
+  <h2>Generated at build time</h2>
+  <ul>
+    <li><a href="/about">About</a></li>
+    <li><a href="/blog">Blog</a> and its posts</li>
+    <li><a href="/products">Products</a> (the list)</li>
+  </ul>
+
+  <h2>Rendered on demand in Jint</h2>
+  <ul>
+    <li><a href="/time">Time</a>, with an API call from the browser</li>
+    <li><a href="/products/1">A product</a>, with a currency switch and a 404 for unknown ones</li>
+    <li><a href="/contact">Contact</a>: a form, a cookie and a redirect</li>
+    <li><a href="/session">Session</a>, stored by ASP.NET Core</li>
+    <li><a href="/me">Me</a>: the user as ASP.NET Core sees it</li>
+    <li><a href="/diagnostics">Diagnostics</a>: environment, client address and request</li>
+    <li><a href="/api/echo?hello=world">The echo endpoint</a></li>
+  </ul>
+</Base>

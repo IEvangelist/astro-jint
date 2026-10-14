@@ -1,0 +1,22 @@
+---
+export const prerender = false;
+
+import Base from '../../layouts/Base.astro';
+import { products } from '../../data/products';
+
+const product = products.find((candidate) => candidate.id === Astro.params.id);
+if (!product) {
+  return new Response(null, { status: 404, statusText: 'Not Found' });
+}
+
+const euro = Astro.url.searchParams.get('currency')?.toLowerCase() === 'eur';
+const price = euro ? `EUR ${(product.price * 0.92).toFixed(2)}` : `USD ${product.price.toFixed(2)}`;
+Astro.response.headers.set('Cache-Control', 'public, max-age=60');
+---
+<Base title={product.name}>
+  <h1>{product.name}</h1>
+  <p id="price">{price}</p>
+  <p>{product.description}</p>
+  <p><a href={euro ? '?currency=usd' : '?currency=eur'}>Show the price in {euro ? 'USD' : 'EUR'}</a></p>
+  <p><a href="/products">All products</a></p>
+</Base>

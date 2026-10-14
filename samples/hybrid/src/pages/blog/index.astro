@@ -1,0 +1,14 @@
+---
+import Base from '../../layouts/Base.astro';
+import { posts } from '../../data/posts';
+---
+<Base title="Blog">
+  <h1>Blog</h1>
+  <ul>
+    {posts.map((post) => (
+      <li>
+        <a href={`/blog/${post.slug}`}>{post.title}</a>: {post.summary}
+      </li>
+    ))}
+  </ul>
+</Base>
