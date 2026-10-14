@@ -16,10 +16,10 @@ default TieredPGO), Windows 11, Intel i7-14700K (28 logical processors), 32 GB. 
 `e3` (631 KB, unminified) and `e3m` (314 KB, minified, see B5).
 
 ```powershell
-$env:SPIKE = 'e3';  pnpm --filter hybrid exec astro build
-$env:SPIKE = 'e3m'; pnpm --filter hybrid exec astro build
+$env:SPIKE = 'e3';  pnpm --filter spike-astro-app exec astro build
+$env:SPIKE = 'e3m'; pnpm --filter spike-astro-app exec astro build
 dotnet build spikes/JintPerf -c Release
-dotnet run --project spikes/JintPerf -c Release --no-build -- samples/hybrid/dist-e3/server [sanity|startup|latency|throughput|memory|limits]
+dotnet run --project spikes/JintPerf -c Release --no-build -- spikes/astro-app/dist-e3/server [sanity|startup|latency|throughput|memory|limits]
 $env:DOTNET_gcServer = '1'      # repeat `throughput` with Server GC
 ```
 
@@ -96,7 +96,7 @@ There is no leak signal, so periodic engine recycling is not needed for memory.
 
 Astro hard-codes `build.minify: false` for the server build, so minification can only be
 requested through `environments.ssr.build.rolldownOptions.output.minify` (see S1/S2 notes
-and `samples/hybrid/astro.config.mjs`). The result is half the size (631 KB to 314 KB) but
+and `spikes/astro-app/astro.config.mjs`). The result is half the size (631 KB to 314 KB) but
 the parse time barely moves (89-131 ms versus 94-127 ms):
 
 | | e3 | e3m |

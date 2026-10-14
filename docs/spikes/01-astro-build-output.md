@@ -4,7 +4,7 @@
 settings give Jint the simplest possible server bundle?
 
 **Setup.** Astro 7.3.6 (newest stable on the corporate npm mirror), `output: 'static'`,
-a throwaway adapter (`samples/hybrid/astro.config.mjs`), one prerendered page
+a throwaway adapter (`spikes/astro-app/astro.config.mjs`), one prerendered page
 (`/`) and one on-demand page (`/time`, `export const prerender = false`).
 
 ## Layout

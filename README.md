@@ -7,6 +7,6 @@ Prototype: run [Astro](https://astro.build) on-demand (SSR) pages inside
 - `src/AstroJint.AspNetCore` - ASP.NET Core integration (NuGet)
 - `samples/hybrid` - sample Astro site (static + on-demand pages)
 - `samples/HybridHost` - sample ASP.NET Core host
-- `spikes/` - throwaway experiments, findings in `docs/spikes/`
+- `spikes/` - throwaway experiments (`astro-app`, `JintSpike`, `JintPerf`), findings in `docs/spikes/`
 
 Work in progress.

@@ -11,8 +11,8 @@ answer real requests through its fetch-handler hosting API? What is missing?
 `HttpRequestMessage`s through `InvokeFetchHandlerAsync`. Run it with:
 
 ```powershell
-$env:SPIKE = 'e3'; pnpm --filter hybrid exec astro build   # or e1
-dotnet run --project spikes/JintSpike -- samples/hybrid/dist-e3/server
+$env:SPIKE = 'e3'; pnpm --filter spike-astro-app exec astro build   # or e1
+dotnet run --project spikes/JintSpike -- spikes/astro-app/dist-e3/server
 dotnet run --project spikes/JintSpike -- --probe            # JS compatibility probe
 ```
 
