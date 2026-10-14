@@ -38,4 +38,13 @@ internal static class VercelSites
 
     /// <summary>The URL of a request that no route of either site matches, so that the 404 page answers it.</summary>
     public const string UnmatchedPath = "/no/such/page";
+
+    /// <summary>The URL of the hashed stylesheet that the page links, which is in the folder of the hashed files.</summary>
+    public static async Task<string> StylesheetOfAsync(this ConformanceSite site, string page)
+    {
+        var href = (await site.GetHtmlAsync(page)).QuerySelector("link[rel=stylesheet]")?.GetAttribute("href");
+
+        Assert.NotNull(href);
+        return href;
+    }
 }

@@ -24,6 +24,8 @@ export default defineConfig(withVariant({
     '/blog/[...slug]': '/team/articles/[...slug]',
     '/Basic/http-2-0.html': '/posts/http2',
     '/other': '/subpage',
+    // A redirect from the folder of the hashed files, to see that the cache rule of the folder is after the redirects.
+    '/_astro/legacy.css': '/',
   },
   build: {
     // Styles are emitted as files so that the site has a hashed asset to cache.
