@@ -55,8 +55,15 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
 | `astro-preview-allowed-hosts.test.ts` | 5 | 0 | 0 | 0 | 5 | none | Preview only. |
 | `core-image.test.ts` | 117 | 10 | 8 | 2 | 97 | `Core\CoreImageTests.cs` | Fixture `core-image-ssr` (the upstream SSR fixture, plus `src/custom-endpoint.ts` of `core-image` and a `public/pixel.svg` that upstream does not have; `base`, `trailingSlash`, the data-URL pattern and the custom endpoint are JSON config variants). The 20 `it`s with a test are the on-demand groups (`dev ssr`, `prod ssr`, `prod ssr - SVG format validation`, `trailing slash on the endpoint`, the two SSR tests of `support base option correctly`) and `custom endpoint`; 18 run and pass, and the two gaps, GAP-CORE-5 and GAP-CORE-6, are skipped; two more tests than upstream (pass). The 97 N/A are explained below. |
 | `image-service-targets.test.ts` | 4 | 0 | 0 | 1 | 3 | `Core\ImageServiceTargetsTests.cs` | Fixture `core-image-ssr` (the `srcAlias` and `wrappingPrerenderer` switches). The `it` of the service that Vite resolves runs for two prerenderers upstream: the default one is ported and passes, the wrapping one is GAP-CORE-4 (skipped), so the `it` is counted as a gap. The other three need `image.service.{build,runtime}`, which Astro 7.3.8 does not implement, or a dev server. One more test than upstream (passes). |
+| `endpoint-runtime.test.ts` | 3 | 0 | 3 | 0 | 0 | `Core\EndpointRuntimeTests.cs` | Fixture `core-endpoints` (the sources of upstream's `endpoint-routing`, `api-routes`, `non-html-pages` and `astro-public` in one project, `output: 'server'`); the dev server of upstream is the on-demand host. One more test than upstream (passes). |
+| `endpoint-response.test.ts` | 3 | 0 | 3 | 0 | 0 | `Core\EndpointResponseTests.cs` | Fixture `core-endpoints`; the dev server of upstream is the on-demand host; `Can bail on streaming` cancels a request that has no response yet, as the host buffers the response. |
+| `endpoint-routing.test.ts` | 2 | 0 | 2 | 0 | 0 | `Core\EndpointRoutingTests.cs` | Fixture `core-endpoints`; the dev server of upstream is the on-demand host. |
+| `api-routes.test.ts` | 1 | 1 | 0 | 0 | 0 | `Core\ApiRoutesTests.cs` | Fixture `core-endpoints` with the config variant that prerenders the routes of the static builds (`EndpointsFixture.Prerendered`); reads `dist/client/binary.dat`. Two more tests than upstream (pass). |
+| `non-html-pages.test.ts` | 2 | 2 | 0 | 0 | 0 | `Core\NonHtmlPagesTests.cs` | Fixture `core-endpoints` with the prerendering variant; reads `dist/client/about.json` and `placeholder.png`. One more test than upstream (passes). |
+| `astro-public.test.ts` | 5 | 4 | 1 | 0 | 0 | `Core\AstroPublicTests.cs` | Fixture `core-endpoints` with the prerendering variant; the `Public (dev)` test, adapted, runs against the on-demand build. Two more tests than upstream (pass). |
+| `page-format.test.ts` | 9 | 9 | 0 | 0 | 0 | `Core\PageFormatTests.cs` | Fixture `core-page-format` (static); the five builds of upstream are the JSON config variants of `build.format`, `base`, `trailingSlash` and `i18n`. |
 
-Total: 43 files, 376 `it`s = 149 ported, 78 adapted, 8 gap, 141 N/A.
+Total: 50 files, 401 `it`s = 165 ported, 87 adapted, 8 gap, 141 N/A.
 
 ## Differences
 
@@ -287,6 +294,42 @@ Total: 43 files, 376 `it`s = 149 ported, 78 adapted, 8 gap, 141 N/A.
   wrapping prerenderer is the `wrappingPrerenderer` switch, and a unique `cacheDir` per variant that the test deletes first gives the fresh asset cache that
   upstream gets from its own `cacheDir`. The non-upstream test requests the on-demand `/` page, to show that the engine also runs the aliased TypeScript
   service.
+- `endpoint-runtime.test.ts`, `endpoint-response.test.ts` and `endpoint-routing.test.ts`: the three files start the dev server on the upstream fixture
+  `endpoint-routing` and fetch its endpoints. The fixture `core-endpoints` has the sources of that project and those of `api-routes`, `non-html-pages` and
+  `astro-public` (one build instead of four). Its config is `output: 'server'`, so every route answers per request as it does in the dev server: the tests are
+  adapted, as the endpoint runtime that answers is the one of production, and the assertions are upstream's. `HEAD` is `SendAsync(HttpMethod.Head, ...)`
+  and the client of the harness does not follow redirects (`redirect: 'manual'`). `Headers with multiple values` joins what the client has of `x-triple`
+  with `", "`, which is what `Headers.get` of fetch returns, and reads the `Set-Cookie` lines for `getSetCookie()`. `Can bail on streaming`: the host buffers
+  a response, so `/streaming` answers after its three seconds and the request that is cancelled at 500 ms has no response yet. The port asserts that the
+  request is cancelled (the `AbortError` that upstream accepts, though its `catch` asserts nothing when the request does not throw), that the host answers
+  the next request, and that the host of the test, which is its own, has logged nothing at warning level or above. `locals.cancelledByTheServer`, which the
+  fixture sets when the stream is cancelled, is read by no upstream test, and `request.signal` does not abort in the engine (GAP-CORE-2). `/incorrect`
+  answers 500 for `GET` and for `HEAD`; the host logs `EndpointDidNotReturnAResponse` for both. One more test than upstream: `GET /headers` has the
+  body that the `HEAD` test expects to be removed.
+- `api-routes.test.ts`, `non-html-pages.test.ts` and `astro-public.test.ts` (its four static `it`s): upstream builds each fixture with no adapter and the default
+  `output: 'static'`, and reads files of `dist`. The port builds `core-endpoints` with a config variant (`EndpointsFixture.Prerendered`) that marks the
+  routes of those builds (`binary.dat.ts`, `about.json.ts`, `placeholder.png.ts`, `index.astro`, `external-files.astro` and `robots.txt.ts`) as prerendered with the
+  harness' `prerender-route` integration. The files are written to `dist/client` and the tests read them there, so they are ported, as in
+  `before-hydration.test.ts`. `output: 'static'` for the whole project is not an option, because the build prerenders `incorrect.ts`, which the endpoint tests
+  need, and fails. The only change in the upstream sources is the path of the image that `placeholder.png.ts` reads (`./src/images/placeholder.png`,
+  because the build of a fixture runs in its directory); that endpoint is prerendered in the default build as well, as it reads the file with `node:fs`,
+  which the engine does not have (upstream: "SSG only"). Each test also requests the file from the host, which serves a prerendered file with the content
+  type of its extension (`binary.dat` is `application/octet-stream`). The fixture has one file that is not upstream, `src/pages/all-bytes.bin.ts` (every byte
+  value, for the on-demand extra test of `api-routes`), and does not have the route `context/data/[param].json.js` of the upstream `api-routes`, which no `it` uses.
+- `astro-public.test.ts`: the test of the empty chunk warning collects the messages of an `AstroLogger` that it hands to the build; the port has the whole output
+  of `astro build`, which is what the logger prints, and also checks that it has `[WARN]` lines, so that the absence of the warning is not the
+  result of a log that has no warnings. The build prints `[WARN] [build] Skipping src/pages/robots.txt.ts because a file with the same name exists in the
+  public folder: robots.txt`, which is Astro's handling of what `public file takes priority over API route in build` tests (the file of `public` is the one in
+  the output). `Public (dev)` is adapted: the on-demand build has the route `robots.txt.ts` in the engine, and the file of `dist/client` is what
+  answers `/robots.txt`. The two extra tests check that an on-demand page keeps its references to the public files and that the files are served with
+  their content types.
+- `page-format.test.ts`: the fixture `core-page-format` has the six pages of the upstream fixture, with `adapter: jint()` and nothing else. The five builds
+  of upstream are config variants (`build.format` `directory`, `file` and `preserve`, and `preserve` with `base: '/test'` and `trailingSlash: 'always'`
+  with and without `i18n`); the harness gives each its own output directory, so there are five builds as upstream. The tests read the same files of
+  `dist/client`, and each one requests the page from the host at its URL (`/nested/page/`, `/`, `/nested/page.html`, `/nested/`, `/test/nested/`,
+  `/test/en/nested/page.html`, `/test/en/nested/`) and compares the response with the text of the file. With `redirectToDefaultLocale` the build warns that the
+  route `/` of `index.astro` conflicts with a higher priority route `/` (the redirect to the default locale), which Astro writes as the root page, so
+  nothing reads `index.html` of that build, as upstream.
 
 ## Gaps
 

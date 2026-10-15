@@ -11,6 +11,17 @@ internal static partial class BuildOutput
             .Where(file => Path.GetExtension(file) is ".mjs" or ".js" or ".cjs")
             .Select(File.ReadAllText);
 
+    /// <summary>
+    /// The text of a file of the client output (<c>dist/client</c>), the way an upstream test reads a file of a static build with
+    /// <c>fixture.readFile('/nested/page.html')</c>; the build has the adapter, so the static files are in the client directory.
+    /// </summary>
+    public static string ReadClientText(ConformanceSite site, string path) => File.ReadAllText(ClientFile(site, path));
+
+    /// <summary>The bytes of a file of the client output; see <see cref="ReadClientText"/>.</summary>
+    public static byte[] ReadClientBytes(ConformanceSite site, string path) => File.ReadAllBytes(ClientFile(site, path));
+
+    private static string ClientFile(ConformanceSite site, string path) => Path.Combine(site.DistPath, "client", path.TrimStart('/'));
+
     /// <summary>The text of <c>server/entry.mjs</c> and of every chunk of the server build, by path relative to <c>server</c>.</summary>
     public static IReadOnlyDictionary<string, string> ReadServerScripts(ConformanceSite site)
     {
