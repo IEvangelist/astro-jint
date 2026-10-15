@@ -1,0 +1,14 @@
+export default function FakeIntegration() {
+  return {
+    name: 'fake-astro-library',
+    hooks: {
+      'astro:config:setup': ({ injectRoute }) => {
+        injectRoute({
+          pattern: '404',
+          entrypoint: './fake-astro-library/404.astro',
+          prerender: true,
+        });
+      },
+    },
+  };
+}
