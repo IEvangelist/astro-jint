@@ -27,6 +27,14 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
 | `server-islands.test.ts` | 19 | 9 | 7 | 1 | 2 | `Core\ServerIslandsTests.cs` | Fixtures `core-server-islands` (`server-islands/ssr` without its content collection), `core-server-islands-content` (the collection, GAP-CORE-1), `core-server-islands-hybrid` and `core-server-islands-custom-fetch`; the class has one more test than upstream (the gap with a code-split build). |
 | `csp-server-islands.test.ts` | 5 | 4 | 0 | 0 | 1 | `Core\CspServerIslandsTests.cs` | Fixtures `core-server-islands` and `core-server-islands-hybrid` with the JSON config `security.csp: true`; helpers `Core\ServerIslandRequests.cs` and `Core\CspDigest.cs`. |
 | `csp.test.ts` | 8 | 7 | 1 | 0 | 0 | `Core\CspTests.cs` | Fixtures `core-csp` (the `kind` test is a JSON config variant), `core-csp-fonts` and `core-csp-adapter`. |
+| `custom-fetch-error-pages.test.ts` | 4 | 0 | 4 | 0 | 0 | `Core\CustomFetchErrorPagesTests.cs` | Fixture `core-custom-fetch-error-pages`. |
+| `error-page-cookies.test.ts` | 3 | 3 | 0 | 0 | 0 | `Core\ErrorPageCookiesTests.cs` | Fixture `core-error-page-cookies`. |
+| `error-bad-js.test.ts` | 2 | 0 | 2 | 0 | 0 | `Core\ErrorBadJsTests.cs` | Fixture `core-error-bad-js`. |
+| `env-secret.test.ts` | 4 | 3 | 1 | 0 | 0 | `Core\EnvSecretTests.cs` | Fixture `core-env-secret`; `AstroOptions.Env` plays the part of the test adapter's `env`. |
+| `astro-envs.test.ts` | 13 | 10 | 3 | 0 | 0 | `Core\AstroEnvsTests.cs` | Fixture `core-astro-envs` (`@astrojs/vue`); the `SSR` describe is a JSON config variant (`output: 'server'`) with a runtime `Env`. |
+| `client-address-node.test.ts` | 2 | 0 | 2 | 0 | 0 | `Core\ClientAddressNodeTests.cs` | Fixture `core-client-address`; the class has one more test than upstream (no forwarded headers middleware). |
+| `request-signal.test.ts` | 3 | 0 | 1 | 2 | 0 | `Core\RequestSignalTests.cs` | Fixture `core-request-signal`; the 2 gaps are GAP-CORE-2 (skipped); the class has one more test than upstream (also skipped). |
+
 ## Differences
 
 - `ssr-request.test.ts`: requests carry `Host: example.com` instead of the absolute URL that `app.render` receives; assets are served by the
@@ -112,6 +120,41 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
   prerendered page, with its file name) when its `staticHeaders` option is on, which the fixture sets, so it is adapted: the test
   expects the four prerendered pages in that list (not the on-demand `/ssr`), each with a `Content-Security-Policy` header, and also
   requests each of them: the host answers 200 with that header (not asserted upstream).
+- `custom-fetch-error-pages.test.ts`: the tests pass a function as `prerenderedErrorPageFetch` to `app.render` (or none), count its calls and
+  read the body it makes up. The adapter always passes its own function, which reads the page from `dist/client`, so a client cannot supply
+  one. Each test requests the same URL (`/not-found`, `/pt/not-found`, `/causes-error`), asserts the same status, and asserts that the body is
+  the prerendered page the URL names (`404`, `pt/404/index.html`, `500`), which shows that the right file was read; the call count and the
+  made-up body are not observable. `falls back to global fetch...` expects a plain 404 because the global fetch cannot reach the page; the
+  host finds the page, so the port asserts the status only. All four are adapted. `Node\PrerenderedErrorPageFetchTests` and
+  `Node\Prerender404500Tests` prove the mechanism for the Node adapter.
+- `error-page-cookies.test.ts`: `addCookieHeader: true` is what the adapter always passes, so `response.headers.getSetCookie()` is the
+  `Set-Cookie` headers of the HTTP response.
+- `error-bad-js.test.ts`: `Does not crash the dev server` runs against the production build, where a failing page answers 500 with an empty body
+  and the error is in the host's log (the engine's console) instead of the page; it also checks that the host answers the next requests
+  (upstream asserts the first text twice). `in nested components, does not crash server` expects the response stream to fail while it is read; the
+  adapter renders to the end before it sends anything, so the failure is a 500 that holds no part of the page.
+- `env-secret.test.ts`: the `env` option that the test adapter takes (how the runtime reads the environment) is `AstroOptions.Env` of the host,
+  which the tests set with `configure` (one variant of the site per set of values). `works in dev` starts a dev server with
+  `process.env.KNOWN_SECRET` set; the port requests the production build of the same fixture, built with `output: 'server'`, with the secret in
+  `Env`. `fails if validateSecrets is enabled and secret is not set` expects the build to throw an error titled `Invalid environment
+  variables.`; the harness throws an `InvalidOperationException` that holds the output of the failed build, where the CLI prints the name of the
+  error (`EnvInvalidVariables`) and its message (`KNOWN_SECRET is missing`) but not its title, so the port asserts those two.
+- `astro-envs.test.ts`: the `Build` tests set `BOOLEAN_VAR` and `NUMBER_VAR` in the test process; the build runs in another one, so the fixture's
+  config sets them (`conformance.buildEnv`) and so it does for `SECRET_PLACE` in the `SSR` variant. The pages are read from the host under the
+  base `/blog` (upstream reads the files of the output directory, and renders `/` in the SSR test). `does not include private env in client-side
+  JS` lists only the root of the output directory upstream, where there is no script; the port reads every script of `dist/client` and requires
+  that there are some. The `SSR` test also asserts that the runtime value (`SECRET_PLACE_SSR`, set through `Env`) is not in the page. The three
+  `Development` tests run a dev server upstream; the port requests the production build, which prints the same elements (`#base-url`, `#env`,
+  `#css`).
+- `client-address-node.test.ts`: the Node adapter reads the first value of `x-forwarded-for` when the `Host` is one of
+  `security.allowedDomains`. The host does not read that header: its client address is the address of the connection. An application that
+  hosts it says which proxies it trusts with `UseForwardedHeaders`; the tests add it (trusting every proxy and the whole chain, so that the first
+  value wins) in `configureApp`, and send `Host: localhost:<port>` and the same two header values as upstream. A third test, not in upstream,
+  shows that without the middleware the header changes nothing (`127.0.0.1`).
+- `request-signal.test.ts`: the two `Node request abort integration` tests emit `close` on a mock socket; the port disconnects the HTTP client.
+  The state that the endpoints write lives in the module of the engine, so the tests use a site with one engine (`PoolSize = 1`, variant
+  `one-engine`), which is busy until the host lets go of the request. Both are skipped as GAP-CORE-2. The `Dev server request abort signal`
+  test only asserts that a request that is not aborted reports `aborted === false`, which the production build answers in the same way: adapted.
 
 ## Gaps
 
@@ -128,6 +171,17 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
   `vite.environments.ssr.build.rolldownOptions.output.codeSplitting: true` (the JSON config of the extra test of the class, which passes)
   the manifest is injected and the same page renders; the host already loads the `chunks/` modules that split build needs. It is
   not a fix that a fixture can make, so the lead decides: for example setting that option in the adapter's `astro:config:setup`.
+- `GAP-CORE-2`: `request.signal` never aborts in the engine when the client disconnects. An endpoint that waits for the `abort` event of
+  `request.signal` (`/stream` and `/sse` of `core-request-signal`) keeps its request pending; when the client closes the connection the host
+  stops waiting (the cancellation token of the request goes to `Engine.WebApi.InvokeFetchHandlerAsync`) and retires the engine, so no `abort`
+  listener runs: the console of the engine shows `started, aborted=false` for `/stream-log` and nothing after it, and the module state of the
+  engine is gone (a site with one engine answers `{"aborted":false,"events":[]}` afterwards, where upstream reads `aborted: true` and
+  `["started","aborted"]`). Skipped tests: `RequestSignalTests.Stream_RequestSignalAbortsWhenTheClientDisconnects`,
+  `ServerSentEvents_RequestSignalAbortsWhenTheClientDisconnects` and the extra `AbortListener_RunsInTheEngineWhenTheClientDisconnects`.
+  Suspected area: `AstroApp.RenderAsync` (`AstroApp.cs`: the token, and the slot that is discarded after a cancellation, design decision 5 of
+  `docs/spikes/03-engine-pool-performance.md`) and the way the engine makes the `Request` (its `signal` is not aborted by that token). A user of
+  `request.signal` (a streaming endpoint that must release a resource) never learns that the client left. Reproduce: run the three tests
+  without their `Skip` (the constant `Gap` of the class).
 
 ## Not applicable
 
