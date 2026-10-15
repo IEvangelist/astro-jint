@@ -91,5 +91,10 @@ jobs:
       - name: Install the packages of every fixture
         run: pnpm install --frozen-lockfile
 
+      # The tests build a missing adapter by starting pnpm.cmd themselves, which fails on the hosted runners
+      # ("Cannot find module ...\pnpm.mjs"). With the adapter built here, they never start pnpm.
+      - name: Build the adapter
+        run: pnpm --filter astro-adapter-jint build
+
       - name: Run the conformance suite
         run: dotnet test --project tests/AstroJint.Conformance.Tests -c Release
