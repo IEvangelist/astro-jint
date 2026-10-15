@@ -120,8 +120,8 @@ public class MiddlewareSequenceTests(SiteHost sites)
         var response = await site.SendRawAsync("/seq/cookies");
 
         var cookies = response.HeaderValues("Set-Cookie");
-        Assert.Contains(cookies, cookie => cookie.StartsWith("cookie1=value1"));
-        Assert.Contains(cookies, cookie => cookie.StartsWith("cookie2=value2"));
+        Assert.Contains(cookies, cookie => cookie.StartsWith("cookie1=value1", StringComparison.Ordinal));
+        Assert.Contains(cookies, cookie => cookie.StartsWith("cookie2=value2", StringComparison.Ordinal));
     }
 
     [Fact(DisplayName = "handles a chain where middle handler returns a redirect")]

@@ -53,26 +53,22 @@ public class RedirectsTemplateTests(SiteHost sites)
         Assert.Equal("Redirecting to: /source/", document.QuerySelector("title")!.TextContent);
 
         // Check meta refresh tag
-        var metaRefresh = document.QuerySelectorAll("meta[http-equiv=\"refresh\"]");
-        Assert.Single(metaRefresh);
-        Assert.Equal("0;url=/source/", metaRefresh[0].GetAttribute("content"));
+        var metaRefresh = Assert.Single(document.QuerySelectorAll("meta[http-equiv=\"refresh\"]"));
+        Assert.Equal("0;url=/source/", metaRefresh.GetAttribute("content"));
 
         // Check robots meta tag
-        var metaRobots = document.QuerySelectorAll("meta[name=\"robots\"]");
-        Assert.Single(metaRobots);
-        Assert.Equal("noindex", metaRobots[0].GetAttribute("content"));
+        var metaRobots = Assert.Single(document.QuerySelectorAll("meta[name=\"robots\"]"));
+        Assert.Equal("noindex", metaRobots.GetAttribute("content"));
 
         // Check canonical link
-        var canonical = document.QuerySelectorAll("link[rel=\"canonical\"]");
-        Assert.Single(canonical);
-        Assert.Equal("/source/", canonical[0].GetAttribute("href"));
+        var canonical = Assert.Single(document.QuerySelectorAll("link[rel=\"canonical\"]"));
+        Assert.Equal("/source/", canonical.GetAttribute("href"));
 
         // Check body content
-        var link = document.QuerySelectorAll("body a");
-        Assert.Single(link);
-        Assert.Equal("/source/", link[0].GetAttribute("href"));
-        Assert.Contains("Redirecting", link[0].InnerHtml);
-        Assert.Contains("/source/", link[0].InnerHtml);
+        var link = Assert.Single(document.QuerySelectorAll("body a"));
+        Assert.Equal("/source/", link.GetAttribute("href"));
+        Assert.Contains("Redirecting", link.InnerHtml);
+        Assert.Contains("/source/", link.InnerHtml);
     }
 
     [Fact(DisplayName = "uses 0 second delay for non-302 redirects")]

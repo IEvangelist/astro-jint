@@ -1,3 +1,4 @@
+using System.Globalization;
 using static AstroJint.Conformance.CoreUnits.AppRender;
 
 namespace AstroJint.Conformance.CoreUnits;
@@ -77,7 +78,7 @@ public class StreamingTests(SiteHost sites)
 
         Assert.Equal(200, response.StatusCode);
         Assert.Equal("text/html", response.Header("content-type"));
-        Assert.True(int.Parse(response.Header("content-length")!) > 0);
+        Assert.True(int.Parse(response.Header("content-length")!, CultureInfo.InvariantCulture) > 0);
         Assert.Contains("<header>", response.Text);
         Assert.Equal(10, response.Text.Split("<li>").Length - 1);
     }

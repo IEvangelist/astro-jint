@@ -1,3 +1,4 @@
+using System.Globalization;
 using static AstroJint.Conformance.CoreUnits.AppRender;
 
 namespace AstroJint.Conformance.CoreUnits;
@@ -184,8 +185,8 @@ public class StreamingRenderingTests(SiteHost sites)
 
         var components = Html(response).QuerySelectorAll(".slow");
         Assert.Equal(5, components.Length);
-        var starts = components.Select(component => long.Parse(component.GetAttribute("data-start")!)).ToArray();
-        var ends = components.Select(component => long.Parse(component.GetAttribute("data-end")!)).ToArray();
+        var starts = components.Select(component => long.Parse(component.GetAttribute("data-start")!, CultureInfo.InvariantCulture)).ToArray();
+        var ends = components.Select(component => long.Parse(component.GetAttribute("data-end")!, CultureInfo.InvariantCulture)).ToArray();
         Assert.True(starts.Max() < ends.Min(), $"starts {string.Join(",", starts)} ends {string.Join(",", ends)}");
     }
 

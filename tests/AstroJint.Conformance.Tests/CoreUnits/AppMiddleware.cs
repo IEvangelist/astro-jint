@@ -12,7 +12,13 @@ internal static class AppMiddleware
     public static Task<ConformanceSite> GetMiddlewareSiteAsync(this SiteHost sites) =>
         sites.GetAsync(Fixture, variant: "name-header", configure: options =>
             options.LocalsFactory = context =>
-                context.Request.Headers.TryGetValue("x-name", out var name)
-                    ? new Dictionary<string, object?> { ["name"] = name.ToString() }
-                    : new Dictionary<string, object?>());
+            {
+                var locals = new Dictionary<string, object?>();
+                if (context.Request.Headers.TryGetValue("x-name", out var name))
+                {
+                    locals["name"] = name.ToString();
+                }
+
+                return locals;
+            });
 }

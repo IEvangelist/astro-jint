@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 namespace AstroJint.Conformance.CoreUnits;
@@ -26,16 +27,16 @@ internal static class FormBodies
         var body = new StringBuilder();
         foreach (var part in parts)
         {
-            body.Append($"--{Boundary}\r\nContent-Disposition: form-data; name=\"{part.Name}\"");
+            body.Append(CultureInfo.InvariantCulture, $"--{Boundary}\r\nContent-Disposition: form-data; name=\"{part.Name}\"");
             if (part.FileName is not null)
             {
-                body.Append($"; filename=\"{part.FileName}\"\r\nContent-Type: application/octet-stream");
+                body.Append(CultureInfo.InvariantCulture, $"; filename=\"{part.FileName}\"\r\nContent-Type: application/octet-stream");
             }
 
             body.Append("\r\n\r\n").Append(part.Value).Append("\r\n");
         }
 
-        body.Append($"--{Boundary}--\r\n");
+        body.Append(CultureInfo.InvariantCulture, $"--{Boundary}--\r\n");
         return Encoding.UTF8.GetBytes(body.ToString());
     }
 }
