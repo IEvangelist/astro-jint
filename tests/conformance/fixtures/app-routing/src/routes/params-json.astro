@@ -1,0 +1,7 @@
+---
+// Shows the params of the route, which is what the components of get-params.test.ts read: the one param of `/[category]` in
+// an element of its own, and all of them as JSON.
+const { category } = Astro.params;
+---
+<h2 class="category">{category}</h2>
+<pre id="params">{JSON.stringify(Astro.params)}</pre>

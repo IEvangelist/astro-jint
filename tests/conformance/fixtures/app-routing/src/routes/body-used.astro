@@ -1,0 +1,7 @@
+---
+// Reads the body of a POST and rewrites afterwards, which Astro refuses: the body is gone for the target.
+if (Astro.request.method === 'POST') {
+  await Astro.request.text();
+}
+return Astro.rewrite('/post/post-b');
+---

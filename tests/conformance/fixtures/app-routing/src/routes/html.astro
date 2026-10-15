@@ -1,0 +1,5 @@
+---
+// The markup of the route comes from the variant, by the pattern of the route (see astro.config.mjs).
+const html = __ROUTE_DATA__[Astro.routePattern];
+---
+<Fragment set:html={html} />

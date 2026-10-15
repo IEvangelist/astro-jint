@@ -1,0 +1,4 @@
+---
+const error = Astro.props.error;
+---
+<html><body><h1>Server Error</h1><p>{error?.message ?? 'Unknown'}</p></body></html>

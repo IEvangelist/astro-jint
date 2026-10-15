@@ -1,0 +1,12 @@
+---
+// Rewrites to what the variant says for the pattern of the route (see astro.config.mjs): a path, a URL or a Request.
+const target = __ROUTE_DATA__[Astro.routePattern];
+
+if (typeof target === 'string') {
+  return Astro.rewrite(target);
+}
+if (target.request) {
+  return Astro.rewrite(new Request(new URL(target.request, Astro.url)));
+}
+return Astro.rewrite(new URL(target.url, Astro.url));
+---

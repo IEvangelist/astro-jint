@@ -1,0 +1,6 @@
+---
+// Reports in headers the request that the page was rendered for, which upstream reads from the request of the component.
+Astro.response.headers.set('X-Rewritten-Method', Astro.request.method);
+Astro.response.headers.set('X-Rewritten-Body', Astro.request.body === null ? 'null' : 'stream');
+---
+<h1>Target</h1>
