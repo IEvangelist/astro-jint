@@ -33,6 +33,10 @@ csharp_style_expression_bodied_constructors = when_on_single_line:silent
 csharp_style_expression_bodied_local_functions = when_on_single_line:silent
 csharp_prefer_braces = true:suggestion
 
+[benchmarks/**.cs]
+# BenchmarkDotNet owns the lifetime of a benchmark class; [GlobalCleanup] releases what [GlobalSetup] created.
+dotnet_diagnostic.CA1001.severity = none
+
 [tests/**.cs]
 # Test names read as Method_Scenario_Outcome.
 dotnet_diagnostic.CA1707.severity = none

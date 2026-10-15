@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="AstroJint.AspNetCore.Tests" />
+    <InternalsVisibleTo Include="AstroJint.Benchmarks" />
   </ItemGroup>
 
 </Project>

@@ -1,4 +1,8 @@
 <Solution>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/AstroJint.Benchmarks/AstroJint.Benchmarks.csproj" />
+    <Project Path="benchmarks/AstroJint.LoadTest/AstroJint.LoadTest.csproj" />
+  </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/HybridHost/HybridHost.csproj" />
   </Folder>
