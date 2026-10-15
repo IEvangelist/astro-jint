@@ -56,7 +56,7 @@ The tables count different things: the first one counts the `it`s of upstream, t
 
 The 46 gap `it`s are 48 skipped tests, because two tests that a port adds are skipped for a gap as well: one more test of `request-signal` ([GAP-CORE-2](#gap-core-2)) and the multipart upload through `HttpClient` in the port of `SsrApiRouteTests` ([GAP-SAMPLE-1](#gap-sample-1)).
 
-On the development machine (an i7-14700K with 32 GB of memory, Windows 11, .NET 10), a run that had to build everything, all 302 outputs of the fixtures and their variants, one at a time, took about 7 minutes.
+On the development machine (an i7-14700K with 32 GB of memory, Windows 11, .NET 10), a run that had to build everything, all 302 outputs of the fixtures and their variants, one at a time, took about 7 minutes. A run that finds all the outputs built already took 24 seconds.
 
 ## Where behavior differs
 
