@@ -10,7 +10,11 @@ namespace AstroJint.Conformance.CoreUnits;
 /// <para>
 /// Differences from upstream: each group is a variant of the <c>app-routing</c> fixture (see <c>AppRouting</c>) whose routes are
 /// injected as real pages. The prerendered target is a real prerendered route (<c>prerender: true</c>), so the build renders it
-/// to a file, as upstream's 'serverLike' manifest assumes; the <c>/500</c> page shows 'ForbiddenRewrite' like upstream's. The
+/// to a file, as upstream's 'serverLike' manifest assumes; the <c>/500</c> page shows 'ForbiddenRewrite' like upstream's. In a
+/// built app the answer does not come from the <c>ForbiddenRewrite</c> check, though: the on-demand bundle has no module for a
+/// prerendered route (<c>virtual:astro:pages</c> holds the routes of its environment only), so <c>tryRewrite</c> stops earlier with
+/// 'Unexpectedly unable to find a component instance for route /prerendered'. The request ends in 500 with the custom 500 page
+/// all the same, which is what upstream's test asserts too (its page is static text, so it cannot tell the error either). The
 /// middleware of the second group is <c>src/middleware-library/rewrite-validation-sequence.ts</c>, the same
 /// <c>sequence(first, second)</c> as upstream's, added to the site as its middleware.
 /// </para>

@@ -6,7 +6,7 @@ if (typeof target === 'string') {
   return Astro.rewrite(target);
 }
 if (target.request) {
-  return Astro.rewrite(new Request(new URL(target.request, Astro.url)));
+  return Astro.rewrite(new Request(new URL(target.request, Astro.url), target.init));
 }
 return Astro.rewrite(new URL(target.url, Astro.url));
 ---

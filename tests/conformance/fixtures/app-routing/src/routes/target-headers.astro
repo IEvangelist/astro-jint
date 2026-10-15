@@ -1,0 +1,4 @@
+---
+// Shows two request headers, to tell whether the request of the page is the one the client sent or the one the rewrite supplied.
+---
+<h1>Target</h1><p id="original">{Astro.request.headers.get('x-original')}</p><p id="added">{Astro.request.headers.get('x-added')}</p>
