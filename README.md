@@ -267,4 +267,10 @@ what is ported, adapted, a known gap or not applicable, and why.
 - Precompressed prerendered files (`br` and `gzip` made at build time, chosen by `Accept-Encoding` in the static fast
   path), and a `byte[]` or `ReadOnlyMemory<byte>` overload of Jint's fetch-handler hosting, which would save a copy of
   every request and response body.
-- Publish the packages, and choose a license.
+- Publish the packages. While Jint is a preview, `AstroJint.AspNetCore` has to carry a prerelease version too: NuGet
+  rejects a stable package that depends on a prerelease one (NU5104).
+
+## License
+
+[MIT](LICENSE). The conformance tests and fixtures are ported from Astro, which is MIT licensed too;
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) has its notice and lists the packages that this repository depends on.

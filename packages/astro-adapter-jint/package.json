@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Astro adapter that renders on-demand routes inside Jint, hosted by ASP.NET Core.",
+  "license": "MIT",
   "type": "module",
   "keywords": [
     "astro-adapter",
