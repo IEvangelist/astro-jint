@@ -387,8 +387,9 @@ Total: 50 files, 401 `it`s = 167 ported, 87 adapted, 6 gap, 141 N/A.
 - `GAP-CORE-5` (fixed): the engine could not `fetch()` a `data:` URL, so the image endpoint answered 500 for an image that is a data URL. With
   `image.remotePatterns: [{ protocol: 'data' }]`, `GET /_image?href=<data:image/svg+xml;base64,...>&f=svg` answered `500 Internal Server Error`, where Node
   answers 200 `image/svg+xml`. `fetch('data:...')` in the engine rejected with `TypeError: Failed to fetch` for a string, a `URL` and a `Request`, with
-  `AstroOptions.FetchUrlFilter` allowing every URL (`new URL('data:...')` itself works): the fetch of Jint is HTTP(S) only (the preview that this
-  repository pins has a data URL helper that its `fetch` does not call), where the Fetch specification decodes the data URL into a response. Every
+  `AstroOptions.FetchUrlFilter` allowing every URL (`new URL('data:...')` itself works): the fetch of Jint is HTTP(S) only (Jint.Browser decodes `data:` URLs since
+    [jint#3991](https://github.com/sebastienros/jint/pull/3991), but the `fetch` of the engine does not call that helper yet; asked for in
+    [jint#4270](https://github.com/sebastienros/jint/issues/4270)), where the Fetch specification decodes the data URL into a response. Every
   endpoint, route or component of a site that loads `data:` URLs with `fetch()` was affected, not only the image endpoint. Fix:
   `packages/astro-adapter-jint/src/data-url.ts` (`withDataUrls`) wraps the `fetch` of the engine, and `server.ts` installs it when the module is evaluated. A
   request for a `data:` URL (a string, a `URL` or a `Request`, with leading white space and the scheme in any case) is answered in the engine, as the standard

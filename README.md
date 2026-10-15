@@ -169,7 +169,8 @@ This is a prototype built on an interpreter. Know these before you plan on it:
   run time.
 - **`astro preview` and the dev server** do not use the host. Develop with `astro dev` and test the hosted result with
   the built site.
-- **Multipart forms** whose part names are not quoted fail in `Request.formData()` (a Jint limitation). Browsers and curl
+- **Multipart forms** that .NET's `MultipartFormDataContent` writes (unquoted names, an extra `filename*`) fail in
+  `Request.formData()` (a Jint limitation, [jint#4269](https://github.com/sebastienros/jint/issues/4269)). Browsers and curl
   quote them.
 - **Not supported:** i18n domains and the Sharp image service. Anything else in Astro is untested until the
   [conformance matrix](docs/conformance.md) says otherwise.

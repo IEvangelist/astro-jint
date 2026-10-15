@@ -33,10 +33,10 @@ Where a test looks odd, it is because of one of these:
 
 ## Gaps
 
-- **`GAP-SAMPLE-1`: multipart form with an unquoted field name** (`ContactFormTests.AMultipartFormThatHttpClientWritesIsRead`, skipped). Jint 5.0.0-preview-2249 implements
-  `Request.formData()` for multipart bodies, but its parser rejects a part whose `Content-Disposition` has an unquoted name (`name=email`), which is how .NET's
-  `MultipartFormDataContent` writes it. Browsers and `curl` quote the name (`AMultipartFormIsReadLikeAUrlEncodedOne` passes), and url-encoded forms are not affected.
-  Not reported to the Jint project yet. To do: try a newer preview, then report it.
+- **`GAP-SAMPLE-1`: multipart form that `MultipartFormDataContent` writes** (`ContactFormTests.AMultipartFormThatHttpClientWritesIsRead`, skipped). Jint 5.0.0-preview-2249
+  and 2253 implement `Request.formData()` for multipart bodies, but the parser is stricter than what .NET writes: an unquoted `name=email`, an unquoted `filename=a.txt` and the
+  extra `filename*=utf-8''a.txt` parameter each make `formData()` reject the body. Browsers and `curl` quote the name (`AMultipartFormIsReadLikeAUrlEncodedOne` passes),
+  and url-encoded forms are not affected. Reported as [sebastienros/jint#4269](https://github.com/sebastienros/jint/issues/4269). To do: un-skip the test when a preview fixes it.
 
 ## Not applicable
 

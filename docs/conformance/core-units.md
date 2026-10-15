@@ -146,7 +146,7 @@ Total: 89 files, 1256 `it`s = 92 ported, 1070 adapted, 23 gap, 71 N/A.
 - **No dev mode.** `astro dev` is never involved, so dev-only behavior and the dev server's URL logic cannot be observed.
 - **No Buffer.** The engine has no Node `Buffer`; fixture code that needs base64 writes it by hand.
 - **Hand-written multipart.** `FormBodies.cs` writes multipart the way a browser does (quoted `name` and `filename`), because the
-  strict `formData()` of Jint.WebApi rejects unquoted names (GAP-UNITS-3).
+  strict `formData()` of Jint.WebApi rejects what HttpClient writes (GAP-UNITS-3, [jint#4269](https://github.com/sebastienros/jint/issues/4269)).
 - **Markup parsing.** The tests parse HTML with AngleSharp where upstream uses cheerio; AngleSharp reports a present boolean
   attribute as an empty string, not as its name.
 - **500 page.** The fixtures with a custom 500 page print `Astro.props.error.name`, so a test reads the error name from the page where
@@ -172,9 +172,10 @@ GAP-UNITS-2 and GAP-UNITS-4.
   is available as `IHttpRequestFeature.RawTarget`.
 - `GAP-UNITS-2` (fixed by `924feb7`): `Response.statusText` did not reach the client. It is now carried as the reason phrase
   (`IHttpResponseFeature.ReasonPhrase`, printable ASCII only). The `Can set the statusText` tests of `app/response.test.ts` run.
-- `GAP-UNITS-3` (= GAP-SAMPLE-1 in `sample.md`): the strict multipart parser behind `formData()` in Jint.WebApi needs `name="..."`
-  and rejects the unquoted names that HttpClient's `MultipartFormDataContent` writes. Skipped (1): the extra HttpClient multipart test
-  of `SsrApiRouteTests`. The other tests post multipart written by hand (`FormBodies.cs`). The fix belongs in the parser of Jint.WebApi,
+- `GAP-UNITS-3` (= GAP-SAMPLE-1 in `sample.md`): the strict multipart parser behind `formData()` in Jint.WebApi needs `name="..."` and
+  `filename="..."` with nothing after the closing quote, and rejects what HttpClient's `MultipartFormDataContent` writes (unquoted names, unquoted file
+  names and an extra `filename*`). Skipped (1): the extra HttpClient multipart test of `SsrApiRouteTests`. The other tests post multipart written
+  by hand (`FormBodies.cs`). The fix belongs in the parser of Jint.WebApi (reported as [jint#4269](https://github.com/sebastienros/jint/issues/4269)),
   or in the host normalizing the part headers.
 - `GAP-UNITS-4` (fixed by `4024a9d`): a POST, PUT, PATCH or DELETE without a body reached Astro without any content, so the
   `Content-Type` of the request was lost with it: the origin check saw no form content type, and `request.formData()` on a form with
