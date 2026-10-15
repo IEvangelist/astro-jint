@@ -93,6 +93,25 @@ public class AstroHostTests
     }
 
     [Fact]
+    public async Task Response_CarriesTheStatusTextOfTheScript()
+    {
+        await using var site = await TestSite.StartAsync();
+        using var response = await site.Client.GetAsync("/status?code=200&text=tasty");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("tasty", response.ReasonPhrase);
+    }
+
+    [Fact]
+    public async Task Response_WithoutStatusText_HasTheStandardPhrase()
+    {
+        await using var site = await TestSite.StartAsync();
+        using var response = await site.Client.GetAsync("/status?code=404");
+
+        Assert.Equal("Not Found", response.ReasonPhrase);
+    }
+
+    [Fact]
     public async Task Response_RoundTripsBinaryBodies()
     {
         await using var site = await TestSite.StartAsync();

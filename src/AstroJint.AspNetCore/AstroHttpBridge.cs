@@ -7,7 +7,11 @@ using Microsoft.Extensions.Primitives;
 namespace AstroJint.AspNetCore;
 
 /// <summary>An on-demand response, fully buffered and detached from the engine that produced it.</summary>
-internal sealed record AstroResponse(int StatusCode, IReadOnlyList<KeyValuePair<string, StringValues>> Headers, byte[] Body);
+internal sealed record AstroResponse(
+    int StatusCode,
+    IReadOnlyList<KeyValuePair<string, StringValues>> Headers,
+    byte[] Body,
+    string? ReasonPhrase = null);
 
 internal sealed class AstroRequestBodyTooLargeException() : Exception("The request body is larger than AstroOptions.MaxRequestBodyBytes.");
 
@@ -89,13 +93,19 @@ internal static class AstroHttpBridge
             }
         }
 
-        return new AstroResponse((int)response.StatusCode, headers, body);
+        return new AstroResponse((int)response.StatusCode, headers, body, response.ReasonPhrase);
     }
 
     public static async Task WriteResponseAsync(HttpContext context, AstroResponse response)
     {
         var target = context.Response;
         target.StatusCode = response.StatusCode;
+
+        // Response.statusText of the script. HTTP/2 has no reason phrase, and without one Kestrel writes the standard text.
+        if (IsReasonPhrase(response.ReasonPhrase))
+        {
+            context.Features.GetRequiredFeature<IHttpResponseFeature>().ReasonPhrase = response.ReasonPhrase;
+        }
 
         foreach (var (name, values) in response.Headers)
         {
@@ -113,6 +123,10 @@ internal static class AstroHttpBridge
             await target.Body.WriteAsync(response.Body, context.RequestAborted).ConfigureAwait(false);
         }
     }
+
+    // A script can build the text from visitor input, and it ends up in the status line: tabs, spaces and printable ASCII only.
+    private static bool IsReasonPhrase(string? value) =>
+        !string.IsNullOrEmpty(value) && value.All(c => c is '\t' or (>= ' ' and <= '~'));
 
     private static Uri BuildUrl(HttpRequest source, IReadOnlyList<AstroAllowedDomain>? allowedDomains)
     {

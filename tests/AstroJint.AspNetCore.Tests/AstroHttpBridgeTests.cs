@@ -361,6 +361,42 @@ public class AstroHttpBridgeTests
     }
 
     [Fact]
+    public async Task ReadResponse_CarriesTheReasonPhrase()
+    {
+        using var response = new HttpResponseMessage(HttpStatusCode.OK) { ReasonPhrase = "tasty", Content = new ByteArrayContent([]) };
+
+        var result = await AstroHttpBridge.ReadResponseAsync(response, CancellationToken.None);
+
+        Assert.Equal("tasty", result.ReasonPhrase);
+    }
+
+    [Fact]
+    public async Task WriteResponse_WritesTheReasonPhrase()
+    {
+        var context = CreateContext();
+
+        await AstroHttpBridge.WriteResponseAsync(context, new AstroResponse(200, [], [], "tasty \tfine"));
+
+        Assert.Equal("tasty \tfine", context.Features.GetRequiredFeature<IHttpResponseFeature>().ReasonPhrase);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("two\r\nSet-Cookie: x=1")]
+    [InlineData("line\nfeed")]
+    [InlineData("caf\u00e9")]
+    [InlineData("nul\0")]
+    public async Task WriteResponse_LeavesTheStandardPhraseWhenTheTextIsNotAReasonPhrase(string? reasonPhrase)
+    {
+        var context = CreateContext();
+
+        await AstroHttpBridge.WriteResponseAsync(context, new AstroResponse(200, [], [], reasonPhrase));
+
+        Assert.Null(context.Features.GetRequiredFeature<IHttpResponseFeature>().ReasonPhrase);
+    }
+
+    [Fact]
     public async Task WriteResponse_WritesStatusHeadersLengthAndBody()
     {
         var context = CreateContext();

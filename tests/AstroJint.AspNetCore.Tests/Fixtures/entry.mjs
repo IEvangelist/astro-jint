@@ -115,11 +115,14 @@ export default {
         console.groupEnd();
         return new Response('logged');
 
-      case '/status':
-        return new Response(query.get('body'), {
-          status: Number(query.get('code') ?? 200),
-          headers: { 'content-type': 'text/plain' },
-        });
+      case '/status': {
+        const init = { status: Number(query.get('code') ?? 200), headers: { 'content-type': 'text/plain' } };
+        if (query.has('text')) {
+          init.statusText = query.get('text');
+        }
+
+        return new Response(query.get('body'), init);
+      }
 
       case '/count':
         return json({ handled });
