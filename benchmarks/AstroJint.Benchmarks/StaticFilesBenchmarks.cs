@@ -13,10 +13,18 @@ public class StaticFilesBenchmarks
     private IHeaderDictionary _conditionalHeaders = null!;
     private string _asset = null!;
 
+    /// <summary>Whether the files are held in memory, as they are by default, or read from disk for every request.</summary>
+    [Params(true, false)]
+    public bool Cache { get; set; }
+
     [GlobalSetup]
     public async Task SetupAsync()
     {
-        _site = await BenchmarkSite.StartAsync(warmUp: false, withLocals: false);
+        _site = await BenchmarkSite.StartAsync(warmUp: false, withLocals: false, staticFileCacheBytes: Cache ? null : 0);
+        if ((_site.App.FileCache.Count > 0) != Cache)
+        {
+            throw new InvalidOperationException($"The cache holds {_site.App.FileCache.Count} files, which does not match Cache = {Cache}.");
+        }
         _middleware = new AstroStaticFilesMiddleware(static _ => Task.CompletedTask, _site.App);
         _headers = FakeHttp.BrowserHeaders();
         _asset = _site.FindAsset(".css");

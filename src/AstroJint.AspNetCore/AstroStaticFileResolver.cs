@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 
 namespace AstroJint.AspNetCore;
@@ -21,24 +23,65 @@ internal readonly record struct StaticFileMatch(StaticFileMatchKind Kind, string
 /// the files that exist, so a request can never reach anything that was not part of the build output, and a
 /// request for an on-demand page costs a few hash lookups instead of file system calls.
 /// </summary>
+/// <remarks>
+/// Every way a request path can name a file is worked out once, when the resolver is created: the files by their
+/// path, and the pages (<c>/about</c>, <c>/about/</c>) by the file that answers for them. A request is then looked up
+/// as a slice of its own text, so that resolving a path to a file allocates nothing. The tables only hold names of
+/// servable files, so a path that tries to leave the client folder or to reach a hidden file is simply not in them.
+/// </remarks>
 internal sealed class AstroStaticFileResolver
 {
-    private readonly HashSet<string> _files;
+    private readonly FrozenDictionary<string, StaticFileMatch> _files;
+    private readonly FrozenDictionary<string, StaticFileMatch>.AlternateLookup<ReadOnlySpan<char>> _fileLookup;
+    private readonly FrozenDictionary<string, StaticFileMatch>.AlternateLookup<ReadOnlySpan<char>> _pageLookup;
+    private readonly StaticFileMatch _home;
     private readonly Dictionary<string, IReadOnlyDictionary<string, string>> _headers = new(StringComparer.Ordinal);
     private readonly string _base;
-    private readonly string _assetsPrefix;
-    private readonly string _trailingSlash;
-    private readonly string _buildFormat;
+    private readonly TrailingSlashMode _trailingSlash;
+
+    private enum TrailingSlashMode
+    {
+        Ignore,
+        Never,
+        Always,
+    }
 
     /// <param name="files">Paths relative to the client folder, using <c>/</c> as the separator.</param>
     /// <param name="manifest">The Astro build manifest, which carries <c>base</c>, <c>trailingSlash</c>, <c>build.format</c>, the assets folder and the headers of prerendered pages.</param>
     public AstroStaticFileResolver(IEnumerable<string> files, AstroManifest manifest)
     {
-        _files = new HashSet<string>(files.Where(IsServable), StringComparer.Ordinal);
         _base = manifest.Base is "/" or "" ? "" : "/" + manifest.Base.Trim('/');
-        _assetsPrefix = manifest.AssetsDir.Trim('/') + "/";
-        _trailingSlash = manifest.TrailingSlash;
-        _buildFormat = manifest.BuildFormat;
+        _trailingSlash = manifest.TrailingSlash switch
+        {
+            "never" => TrailingSlashMode.Never,
+            "always" => TrailingSlashMode.Always,
+            _ => TrailingSlashMode.Ignore,
+        };
+
+        var assetsPrefix = manifest.AssetsDir.Trim('/') + "/";
+        var exact = new Dictionary<string, StaticFileMatch>(StringComparer.Ordinal);
+        foreach (var file in files)
+        {
+            if (IsServable(file))
+            {
+                exact[file] = new StaticFileMatch(StaticFileMatchKind.File, file, file.StartsWith(assetsPrefix, StringComparison.Ordinal));
+            }
+        }
+
+        // The file that answers for a page. In the directory format that is the index file of the folder. Otherwise
+        // a file named after the page takes precedence over the index file of a folder of that name.
+        var pages = new Dictionary<string, StaticFileMatch>(StringComparer.Ordinal);
+        if (manifest.BuildFormat != "directory")
+        {
+            AddPages(pages, exact.Keys, ".html");
+        }
+
+        AddPages(pages, exact.Keys, "/index.html");
+
+        _home = exact.TryGetValue("index.html", out var home) ? new StaticFileMatch(StaticFileMatchKind.File, home.Path) : default;
+        _files = exact.ToFrozenDictionary(StringComparer.Ordinal);
+        _fileLookup = _files.GetAlternateLookup<ReadOnlySpan<char>>();
+        _pageLookup = pages.ToFrozenDictionary(StringComparer.Ordinal).GetAlternateLookup<ReadOnlySpan<char>>();
 
         foreach (var entry in manifest.StaticHeaders)
         {
@@ -47,6 +90,9 @@ internal sealed class AstroStaticFileResolver
     }
 
     public int Count => _files.Count;
+
+    /// <summary>The paths of the servable files, relative to the client folder.</summary>
+    public ImmutableArray<string> Paths => _files.Keys;
 
     /// <summary>The response headers that Astro rendered for a prerendered file, such as its <c>Content-Security-Policy</c>.</summary>
     /// <param name="relativePath">A path relative to the client folder, as in <see cref="StaticFileMatch.Path"/>.</param>
@@ -76,13 +122,22 @@ internal sealed class AstroStaticFileResolver
 
         var hasTrailingSlash = requestPath.Length > 1 && requestPath[^1] == '/';
 
-        if (!hasTrailingSlash && relative.Length > 0 && _files.Contains(relative))
+        if (!hasTrailingSlash && relative.Length > 0 && _fileLookup.TryGetValue(relative, out var file))
         {
-            return new StaticFileMatch(StaticFileMatchKind.File, relative, relative.StartsWith(_assetsPrefix, StringComparison.Ordinal));
+            return file;
         }
 
-        var page = FindPage(relative);
-        if (page is null)
+        StaticFileMatch page;
+        if (relative.Length == 0)
+        {
+            page = _home;
+        }
+        else if (!_pageLookup.TryGetValue(relative, out page))
+        {
+            return default;
+        }
+
+        if (page.Kind == StaticFileMatchKind.None)
         {
             return default;
         }
@@ -90,18 +145,18 @@ internal sealed class AstroStaticFileResolver
         var isHome = relative.Length == 0 && _base.Length == 0;
         if (!isHome)
         {
-            if (_trailingSlash == "never" && hasTrailingSlash)
+            if (_trailingSlash == TrailingSlashMode.Never && hasTrailingSlash)
             {
                 return new StaticFileMatch(StaticFileMatchKind.Redirect, requestPath.TrimEnd('/'));
             }
 
-            if (_trailingSlash == "always" && !hasTrailingSlash)
+            if (_trailingSlash == TrailingSlashMode.Always && !hasTrailingSlash)
             {
                 return new StaticFileMatch(StaticFileMatchKind.Redirect, requestPath + "/");
             }
         }
 
-        return new StaticFileMatch(StaticFileMatchKind.File, page);
+        return page;
     }
 
     /// <summary>Finds a file by its exact request path, without page conventions. Used for prerendered error pages.</summary>
@@ -113,67 +168,55 @@ internal sealed class AstroStaticFileResolver
             return false;
         }
 
-        if (!_files.Contains(relative))
+        if (!_fileLookup.TryGetValue(relative, out var match) || match.Path is not { } path)
         {
             return false;
         }
 
-        relativePath = relative;
+        relativePath = path;
         return true;
     }
 
-    private string? FindPage(string relative)
+    // A page is found by its path without the extension of its file, and the first file to claim a path keeps it.
+    private static void AddPages(Dictionary<string, StaticFileMatch> pages, IEnumerable<string> files, string suffix)
     {
-        if (relative.Length == 0)
+        foreach (var file in files)
         {
-            return _files.Contains("index.html") ? "index.html" : null;
+            if (file.Length > suffix.Length && file.EndsWith(suffix, StringComparison.Ordinal))
+            {
+                pages.TryAdd(file[..^suffix.Length], new StaticFileMatch(StaticFileMatchKind.File, file));
+            }
         }
-
-        var directoryIndex = relative + "/index.html";
-        if (_buildFormat == "directory")
-        {
-            return _files.Contains(directoryIndex) ? directoryIndex : null;
-        }
-
-        var file = relative + ".html";
-        return _files.Contains(file) ? file
-            : _files.Contains(directoryIndex) ? directoryIndex
-            : null;
     }
 
-    // Strips the base and the surrounding slashes. Anything that could escape the client folder or that
-    // addresses a hidden file (except /.well-known) is rejected up front. Doubled slashes are rejected too:
-    // Trim() would hide them, and a redirect to "//host" is a protocol-relative URL that leaves the site.
-    private bool TryGetRelativePath(string requestPath, out string relative)
+    // Strips the base and the surrounding slashes. A path that tries to leave the client folder, or that addresses
+    // a hidden file (except /.well-known), is not in the tables, because they are built from servable files only.
+    // Doubled slashes are rejected up front: Trim() would hide them, and a redirect to "//host" is a
+    // protocol-relative URL that leaves the site.
+    private bool TryGetRelativePath(string requestPath, out ReadOnlySpan<char> relative)
     {
-        relative = "";
+        relative = default;
         if (requestPath.Length == 0 || requestPath[0] != '/' || requestPath.Contains("//", StringComparison.Ordinal))
         {
             return false;
         }
 
-        var rest = requestPath;
+        var rest = requestPath.AsSpan();
         if (_base.Length > 0)
         {
-            if (!requestPath.StartsWith(_base, StringComparison.Ordinal))
+            if (!rest.StartsWith(_base, StringComparison.Ordinal))
             {
                 return false;
             }
 
-            rest = requestPath[_base.Length..];
+            rest = rest[_base.Length..];
             if (rest.Length > 0 && rest[0] != '/')
             {
                 return false;
             }
         }
 
-        var trimmed = rest.Trim('/');
-        if (trimmed.Length > 0 && !IsServable(trimmed))
-        {
-            return false;
-        }
-
-        relative = trimmed;
+        relative = rest.Trim('/');
         return true;
     }
 

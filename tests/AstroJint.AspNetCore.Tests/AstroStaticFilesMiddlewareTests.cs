@@ -614,7 +614,7 @@ public class AstroStaticFilesMiddlewareTests
     public async Task StaticHeaders_AreNotSentForFilesThatDisappearedAfterStartup()
     {
         using var dist = SiteWithStaticHeaders();
-        await using var site = await TestSite.StartAsync(dist);
+        await using var site = await TestSite.StartAsync(dist, options => options.StaticFileCacheBytes = 0);
         File.Delete(Path.Combine(dist.ClientPath, "index.html"));
 
         using var response = await site.Client.GetAsync("/");
@@ -772,7 +772,7 @@ public class AstroStaticFilesMiddlewareTests
     public async Task FilesThatDisappearAfterStartup_GoToTheEngine()
     {
         using var dist = DistFolder.CreateDefault();
-        await using var site = await TestSite.StartAsync(dist);
+        await using var site = await TestSite.StartAsync(dist, options => options.StaticFileCacheBytes = 0);
         File.Delete(Path.Combine(dist.ClientPath, "robots.txt"));
 
         using var response = await site.Client.GetAsync("/robots.txt");

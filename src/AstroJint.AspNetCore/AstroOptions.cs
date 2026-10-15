@@ -42,6 +42,14 @@ public sealed class AstroOptions
     public long MaxRequestBodyBytes { get; set; } = 10L * 1024 * 1024;
 
     /// <summary>
+    /// How much memory, in bytes, may hold the prerendered pages and assets. When the host starts it reads as many of
+    /// the smallest files (none above 1 MiB) as fit, and answers requests for them without touching the file system.
+    /// The rest is served from disk as before. The files are read once, so restart the host after rebuilding the
+    /// site. Zero turns the cache off. Defaults to 32 MiB.
+    /// </summary>
+    public long StaticFileCacheBytes { get; set; } = 32L * 1024 * 1024;
+
+    /// <summary>
     /// Produces the value of <c>Astro.locals</c> for a request. The result is serialized to JSON with web defaults
     /// (camelCase), so it has to be plain data.
     /// </summary>

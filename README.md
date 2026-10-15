@@ -125,6 +125,7 @@ Set them in `AddAstro(options => ...)`, bind them from configuration
 | `TimeZone` | UTC | Time zone that JavaScript's `Date` uses. |
 | `WarmUp` | `true` | Create every engine in the background at start, so that the first on-demand request does not pay for it. Static pages are served immediately either way. |
 | `MaxRequestBodyBytes` | 10 MiB | Larger request bodies get a 413. |
+| `StaticFileCacheBytes` | 32 MiB | Prerendered files of up to 1 MiB are read once at start and served from memory (the smallest first, until this budget is used). `0` serves every file from disk. A file that changes after start is still sent as it was read, so restart after a deploy. |
 | `LocalsFactory` | none | `Func<HttpContext, object?>`. The result is serialized to JSON (camelCase) and becomes `Astro.locals`. |
 | `Env` | empty | Values for `env.schema` variables with `access: 'secret'`, also bound from `Astro:Env:NAME` or `Astro__Env__NAME`. |
 | `FetchUrlFilter` | none (rejects every request) | Decides which URLs JavaScript's `fetch` may request, for example the origin of a remote image. |

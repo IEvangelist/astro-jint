@@ -36,13 +36,14 @@ internal sealed partial class AstroApp : IAsyncDisposable
         }
 
         Files = AstroStaticFileResolver.FromDirectory(ClientRoot, Manifest);
-
+        FileCache = AstroStaticFileCache.Load(Files, ClientRoot, _options.StaticFileCacheBytes);
         var consoleSink = new LoggerConsoleSink(loggerFactory.CreateLogger(LoggerConsoleSink.Category));
         var sessions = new AstroSessionStore(sessionCache, _options.SessionIdleTimeout, loggerFactory.CreateLogger<AstroSessionStore>());
         var factory = new AstroEngineFactory(_options, entryPath, ReadClientFile, ReadClientBytes, ReadClientHeaders, sessions, consoleSink);
         Pool = new EnginePool<AstroEngineSlot>(_options.PoolSize, factory.CreateAsync, logger);
 
         LogLoaded(logger, Manifest.AstroVersion ?? "unknown", DistPath, Files.Count, _options.PoolSize);
+        LogFileCache(logger, FileCache.Count, Files.Count, FileCache.Bytes, _options.StaticFileCacheBytes);
     }
 
     public string DistPath { get; }
@@ -52,6 +53,8 @@ internal sealed partial class AstroApp : IAsyncDisposable
     public AstroManifest Manifest { get; }
 
     public AstroStaticFileResolver Files { get; }
+
+    public AstroStaticFileCache FileCache { get; }
 
     public EnginePool<AstroEngineSlot> Pool { get; }
 
@@ -217,6 +220,9 @@ internal sealed partial class AstroApp : IAsyncDisposable
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Hosting Astro {AstroVersion} from '{DistPath}': {StaticFileCount} static files, {PoolSize} JavaScript engines.")]
     private static partial void LogLoaded(ILogger logger, string astroVersion, string distPath, int staticFileCount, int poolSize);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Kept {CachedCount} of {StaticFileCount} static files in memory: {CachedBytes:N0} of {BudgetBytes:N0} bytes.")]
+    private static partial void LogFileCache(ILogger logger, int cachedCount, int staticFileCount, long cachedBytes, long budgetBytes);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Warmed up {Ready} of {PoolSize} JavaScript engines in {ElapsedMs:N0} ms.")]
     private static partial void LogWarmedUp(ILogger logger, int ready, int poolSize, double elapsedMs);
