@@ -1,0 +1,17 @@
+{
+  "name": "conformance-cb-client-only",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "dependencies": {
+    "@astrojs/react": "^7.0.1",
+    "@astrojs/svelte": "^9.0.1",
+    "astro": "^7.3.6",
+    "astro-adapter-jint": "workspace:*",
+    "conformance-cb-client-only-pkg": "file:./pkg",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "svelte": "^5.57.2",
+    "typescript": "^5.9.3"
+  }
+}

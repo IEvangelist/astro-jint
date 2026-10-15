@@ -1,0 +1,6 @@
+{
+  "name": "conformance-cb-client-only-pkg",
+  "version": "0.0.0",
+  "main": "index.svelte",
+  "private": true
+}
