@@ -45,6 +45,14 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
 | `ssr-partytown.test.ts` | 2 | 1 | 1 | 0 | 0 | `Core\SsrPartytownTests.cs` | Fixture `core-ssr-partytown` (`@astrojs/partytown`). |
 | `ssr-renderers-static-vue.test.ts` | 2 | 1 | 1 | 0 | 0 | `Core\SsrRenderersStaticVueTests.cs` | Fixture `core-ssr-renderers-static-vue` (`@astrojs/vue`); one more test than upstream (the control with an on-demand page). |
 | `before-hydration.test.ts` | 5 | 5 | 0 | 0 | 0 | `Core\BeforeHydrationTests.cs` | Fixture `core-before-hydration` (`@astrojs/preact`); the four builds of upstream are JSON config variants (`output`, `conformance.beforeHydration`). |
+| `astro-basic.test.ts` | 15 | 7 | 5 | 3 | 0 | `Core\AstroBasicTests.cs` | Fixture `core-astro-basic` (`@astrojs/preact`, `@astrojs/mdx`; static, `output: 'server'` and `conformance.customPrerenderer` variants); the gaps are GAP-CORE-4 (skipped); three more tests than upstream (the same checks with `conformance.prerenderEntry`, pass). |
+| `config-mode.test.ts` | 3 | 2 | 0 | 0 | 1 | `Core\ConfigModeTests.cs` | Fixture `core-astro-basic`; the N/A one is the build without an adapter. |
+| `dev-request-url.test.ts` | 2 | 0 | 2 | 0 | 0 | `Core\DevRequestUrlTests.cs` | Fixture `core-astro-basic` (`output: 'server'`), with the `url` and `prerendered` pages of upstream's `dev-request-url` project. |
+| `import-app.test.ts` | 1 | 0 | 1 | 0 | 0 | `Core\ImportAppTests.cs` | The import runs in the engine, from `/import-app`, an endpoint of `core-astro-basic` that is not upstream. |
+| `ssr-adapter-build-config.test.ts` | 2 | 0 | 2 | 0 | 0 | `Core\SsrAdapterBuildConfigTests.cs` | Fixture `core-ssr-request`; `build.client` and `build.server` are set in the config instead of by an inline adapter. |
+| `ssr-preview.test.ts` | 1 | 0 | 0 | 0 | 1 | none | Preview only. |
+| `astro-preview-headers.test.ts` | 2 | 0 | 0 | 0 | 2 | none | Preview only. |
+| `astro-preview-allowed-hosts.test.ts` | 5 | 0 | 0 | 0 | 5 | none | Preview only. |
 
 ## Differences
 
@@ -228,6 +236,32 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
   chunk the `before-hydration-url` names is `/_astro/astro_scripts/before-hydration.js.<hash>.js`, a nested path under `_astro`; the tests check that
   the file exists in the output and that the host serves it as `text/javascript` (the second part is not asserted upstream). The tests where the
   integration is not used also check that the island is there (the page was not lost), which upstream does not.
+- `astro-basic.test.ts`: the fixture `core-astro-basic` is the upstream project (`@astrojs/preact` and `@astrojs/mdx`, `vite.build.sourcemap: true`) plus three
+  pages that other upstream tests or this port need (`url` and `prerendered`, copies of those of `dev-request-url`, and the `import-app` endpoint, see
+  below). The `server` function of its config (a dev server option) is left out. Its config has two switches: `conformance.customPrerenderer` adds a copy
+  of upstream's `test-prerenderer.ts` that writes the counts of its calls and the paths it rendered to `prerenderer-calls.json` (the build runs in another
+  process, which a test cannot spy on), and `conformance.prerenderEntry` (GAP-CORE-4). The "build" tests read `/x/index.html` of the output upstream (built with
+  no adapter); the port builds with this adapter and requests `/x/` from the host. The two "preview" tests request the host, which replaces the preview server.
+  The two "development" tests run against `output: 'server'`, where the pages are on-demand: the dev server answers `/import-queries/raw/index.html`, but the
+  production app answers 404 for it (the route is `/import-queries/raw`), so the request is `/import-queries/raw/`. `Renders markdown in utf-8 by default`
+  keeps the assertion that the `Content-Type` has no `charset=utf-8`: the host sends Astro's `text/html` as it is. `server sourcemaps not included in
+  output` lists the root of `dist`, where upstream lists the root of the site (a static site has no server build there), and adds that `dist/client` only
+  has maps of client scripts and that `/entry.mjs.map` answers 404: with `sourcemap: true` the server bundle keeps its maps in `dist/server`
+  (`entry.mjs.map` and `chunks/*.map`), which the host does not serve. The three "custom prerenderer" tests are the gap GAP-CORE-4; with `prerenderEntry` they
+  pass (`setup`, `getStaticPaths` and `teardown` are called once, `render` 22 times, for the 22 paths of the 21 routes, `/` among them, and `GET /` is `Hello world!`).
+- `config-mode.test.ts`: `loadTestAdapterApp()` and `app.render(new Request('http://example.com/'))` are `GET /` on the `output: 'server'` build, whose
+  content type is exactly `text/html`, as upstream asserts. The static build reads `/index.html` from the output upstream; here it checks that
+  `client/index.html` exists and that `GET /` answers with it.
+- `dev-request-url.test.ts`: both tests run against the `output: 'server'` build of `core-astro-basic` instead of the dev server. The prerendered page is a
+  file written at build time, so no query of a request can be in it.
+- `import-app.test.ts`: the import has to work in the engine, so the fixture has an endpoint that is not upstream, `src/pages/import-app.ts`, which returns
+  the export names of `await import('astro/app')` or a 500 with the error. The test also asserts that `App` and `BaseApp` are among them (upstream
+  asserts `true === true` after the import).
+- `ssr-adapter-build-config.test.ts`: upstream sets `build.client` and `build.server` from an inline adapter (Astro's adapter API) that also supplies
+  its own server entry, the virtual module `@my-ssr`. The port sets the same two options in the user config (strings relative to `outDir`, so
+  `./.root/client/` and `./.root/server/`) and checks the same files, `cars.json` and `entry.mjs`; this adapter records the directories in
+  `astro-jint.json`, so the port also requests the public file and an on-demand page from the host, which only works if the host reads them from there. It
+  also asserts that the default `client` and `server` directories were not created.
 
 ## Gaps
 
@@ -265,6 +299,20 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
   themselves today. Suspected area: the `vite.ssr` block of `astro:config:setup` in `packages/astro-adapter-jint/src/index.ts`, which could
   add the `worker` condition. Skipped test: `SsrLargeArrayTests.LargeIslandProp_ArrayBufferBody_IsTheRightHtml`. Reproduce: run it without its
   `Skip`.
+- `GAP-CORE-4`: a user integration that calls `setPrerenderer` (in `astro:build:start`) cannot be built together with this adapter, with `output: 'static'`
+  or `'server'`: the build stops at "Building server entrypoints..." with Vite's `rolldownOptions.input should not be an html file when building for SSR.
+  Please specify a dedicated SSR entry.` (the harness raises it as an `InvalidOperationException` that holds the build output). In
+  `core/build/vite-build-config.js` Astro gives the `prerender` environment `astro/entrypoints/prerender` as its input unless
+  `!isLegacyAdapter(adapter) && settings.prerenderer`; the comment there says the entry is skipped "if an adapter with `entrypointResolution: 'self'` is
+  used AND provides a custom prerenderer", but the code treats `'auto'`, which this adapter sets (`setAdapter({ entrypointResolution: 'auto', ... })` in
+  `index.ts`), as a non-legacy adapter too, so the environment has no input and Vite falls back to an HTML one. The prerenderer that upstream registers
+  delegates everything to the default one (`setPrerenderer((defaultPrerenderer) => ...)`), which changes nothing: any `setPrerenderer` call fails. Upstream
+  does not meet it because `testAdapter()` is a legacy adapter (`serverEntrypoint: '@my-ssr'`, no `entrypointResolution`); the one with `'auto'` is
+  `selfTestAdapter()`, which only `server-entry.test.ts` uses. Skipped tests: the three of `Astro custom prerenderer` in `AstroBasicTests`. Workaround
+  (the non-upstream tests of the class, which pass): a Vite plugin that sets `build.rolldownOptions.input` of the `prerender` environment to
+  `astro/entrypoints/prerender` (the `conformance.prerenderEntry` switch of `core-astro-basic`). Suspected area: either an Astro defect (the code and the
+  comment disagree) or the `'auto'` of this adapter, which could give the environment its input in `astro:config:setup`. Reproduce: run the three tests
+  without their `Skip` (the constant `GapCustomPrerenderer` of the class).
 
 ## Not applicable
 
@@ -297,3 +345,13 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
   message of the content layer (`Found legacy content config file in`, `**title**: Required`, `returned an entry with an invalid id`), and
   `With empty collections directory` builds a project with an empty collection and reads its static `index.html`. All of it is build-time
   validation of the content layer: no adapter, no runtime and no request.
+- `config-mode.test.ts` / `output: 'server'` / `deploy config omitted` / `Throws during the build`: builds `output: 'server'` with no adapter and expects
+  Astro's `without an adapter` error. Astro raises it before an adapter takes part, so there is no adapter, host or request (as for the `no adapter` tests of
+  `server-islands.test.ts`).
+- `ssr-preview.test.ts` / `preview server works`: starts and stops `astro preview` with the `previewEntrypoint` (`./preview.mjs`) that the test adapter
+  declares. This adapter has no preview entrypoint (the host runs a built site), and the test asserts nothing about a response.
+- `astro-preview-headers.test.ts` (2 tests): `server.headers` of the config, which the preview server of `astro preview` adds to the pages it serves (and not
+  to a 404). The host does not read `server.headers`; the response headers of an ASP.NET Core application are those of its own middleware.
+- `astro-preview-allowed-hosts.test.ts` (5 tests): the host-name allow-list of Vite's preview server (`vite.preview.allowedHosts`, `server.allowedHosts`,
+  `true`), tested with raw requests with a custom `Host` header against `astro preview`. The counterpart in the host is the `AllowedHosts` setting
+  (host filtering) of the ASP.NET Core application, which does not belong to this adapter.

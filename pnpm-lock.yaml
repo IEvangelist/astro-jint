@@ -389,6 +389,24 @@ importers:
         specifier: workspace:*
         version: link:../../../../packages/astro-adapter-jint
 
+  tests/conformance/fixtures/core-astro-basic:
+    dependencies:
+      '@astrojs/mdx':
+        specifier: ^8.0.3
+        version: 8.0.3(@astrojs/markdown-satteri@0.4.3)(astro@7.3.8(@types/node@24.19.2)(yaml@2.9.1))
+      '@astrojs/preact':
+        specifier: ^6.0.6
+        version: 6.0.6(@babel/core@7.29.7)(@types/node@24.19.2)(preact@10.29.8)(yaml@2.9.1)
+      astro:
+        specifier: ^7.3.6
+        version: 7.3.8(@types/node@24.19.2)(yaml@2.9.1)
+      astro-adapter-jint:
+        specifier: workspace:*
+        version: link:../../../../packages/astro-adapter-jint
+      preact:
+        specifier: ^10.29.8
+        version: 10.29.8(preact-render-to-string@6.8.0)
+
   tests/conformance/fixtures/core-astro-envs:
     dependencies:
       '@astrojs/vue':
