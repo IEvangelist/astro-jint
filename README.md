@@ -14,14 +14,20 @@ checks, minimal APIs, rate limiting, logging, forwarded headers) sits in front o
 
 ## How it works
 
-```text
-build time: astro build (Node.js)                run time: ASP.NET Core (no Node.js)
----------------------------------                ------------------------------------------------------------
-dist/client/**         prerendered pages   --->  static files middleware: ETag, ranges, cache headers
-                       and hashed assets
-dist/server/entry.mjs  Astro server        --->  pool of Jint engines, each one runs app.render(request)
-dist/server/chunks/    runtime and routes
-dist/astro-jint.json   manifest            --->  read at start-up: base, trailingSlash, static headers, routes
+```mermaid
+flowchart LR
+    subgraph build["Build time: astro build (Node.js)"]
+        client["dist/client/**<br/>(prerendered<br/>pages, assets)"]
+        server["dist/server/<br/>(Astro runtime<br/>and routes)"]
+        manifest["dist/<br/>astro-jint.json<br/>(manifest)"]
+    end
+    subgraph run["Run time: ASP.NET Core (no Node.js)"]
+        direction TB
+        request(["Request"]) --> middleware["Your middleware<br/>and endpoints"]
+        middleware -->|"file in dist/client"| files["Static files<br/>middleware<br/>(ETag, ranges,<br/>cache headers)"]
+        middleware -->|"everything else"| engines["Pool of<br/>Jint engines<br/>(each runs<br/>app.render(request))"]
+    end
+    build ==> run
 ```
 
 A request passes your middleware and endpoints first. Then:
@@ -32,9 +38,10 @@ A request passes your middleware and endpoints first. Then:
    pool, which runs Astro's `app.render(request)`. The request and the response cross the bridge as plain data.
 
 The **adapter** (`packages/astro-adapter-jint`) makes `astro build` emit that layout: a self-contained server bundle,
-the client output and the manifest. The **host** (`src/AstroJint.AspNetCore`) loads the bundle into a pool of engines that
-share the parsed modules and turns Astro's `Response` into an ASP.NET Core response. The experiments that shaped this
-design, with measurements, are in [docs/spikes](docs/spikes).
+the client output and a manifest (`astro-jint.json`) with the `base`, the `trailingSlash` setting, the static headers
+and the routes. The **host** (`src/AstroJint.AspNetCore`) reads the manifest at start-up, loads the bundle into a pool
+of engines that share the parsed modules and turns Astro's `Response` into an ASP.NET Core response. The experiments
+that shaped this design, with measurements, are in [docs/spikes](docs/spikes).
 
 ## Quick start
 
