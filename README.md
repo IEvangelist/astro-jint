@@ -128,7 +128,7 @@ Set them in `AddAstro(options => ...)`, bind them from configuration
 | `StaticFileCacheBytes` | 32 MiB | Prerendered files of up to 1 MiB are read once at start and served from memory (the smallest first, until this budget is used). `0` serves every file from disk. A file that changes after start is still sent as it was read, so restart after a deploy. |
 | `LocalsFactory` | none | `Func<HttpContext, object?>`. The result is serialized to JSON (camelCase) and becomes `Astro.locals`. |
 | `Env` | empty | Values for `env.schema` variables with `access: 'secret'`, also bound from `Astro:Env:NAME` or `Astro__Env__NAME`. |
-| `FetchUrlFilter` | none (rejects every request) | Decides which URLs JavaScript's `fetch` may request, for example the origin of a remote image. |
+| `FetchUrlFilter` | none (rejects every request) | Decides which URLs JavaScript's `fetch` may request, for example the origin of a remote image. A `data:` URL is decoded in the engine and never reaches the filter. |
 | `SessionIdleTimeout` | 20 minutes | How long session data is kept after its last use. |
 
 ### Composing with ASP.NET Core

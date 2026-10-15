@@ -53,7 +53,7 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
 | `ssr-preview.test.ts` | 1 | 0 | 0 | 0 | 1 | none | Preview only. |
 | `astro-preview-headers.test.ts` | 2 | 0 | 0 | 0 | 2 | none | Preview only. |
 | `astro-preview-allowed-hosts.test.ts` | 5 | 0 | 0 | 0 | 5 | none | Preview only. |
-| `core-image.test.ts` | 117 | 10 | 8 | 2 | 97 | `Core\CoreImageTests.cs` | Fixture `core-image-ssr` (the upstream SSR fixture, plus `src/custom-endpoint.ts` of `core-image` and a `public/pixel.svg` that upstream does not have; `base`, `trailingSlash`, the data-URL pattern and the custom endpoint are JSON config variants). The 20 `it`s with a test are the on-demand groups (`dev ssr`, `prod ssr`, `prod ssr - SVG format validation`, `trailing slash on the endpoint`, the two SSR tests of `support base option correctly`) and `custom endpoint`; 18 run and pass, and the two gaps, GAP-CORE-5 and GAP-CORE-6, are skipped; two more tests than upstream (pass). The 97 N/A are explained below. |
+| `core-image.test.ts` | 117 | 12 | 8 | 0 | 97 | `Core\CoreImageTests.cs` | Fixture `core-image-ssr` (the upstream SSR fixture, plus `src/custom-endpoint.ts` of `core-image` and a `public/pixel.svg` that upstream does not have; `base`, `trailingSlash`, the data-URL pattern and the custom endpoint are JSON config variants). The 20 `it`s with a test are the on-demand groups (`dev ssr`, `prod ssr`, `prod ssr - SVG format validation`, `trailing slash on the endpoint`, the two SSR tests of `support base option correctly`) and `custom endpoint`, and all of them run and pass (the two that were GAP-CORE-5 and GAP-CORE-6 are fixed); three more tests than upstream (pass). The 97 N/A are explained below. |
 | `image-service-targets.test.ts` | 4 | 0 | 0 | 1 | 3 | `Core\ImageServiceTargetsTests.cs` | Fixture `core-image-ssr` (the `srcAlias` and `wrappingPrerenderer` switches). The `it` of the service that Vite resolves runs for two prerenderers upstream: the default one is ported and passes, the wrapping one is GAP-CORE-4 (skipped), so the `it` is counted as a gap. The other three need `image.service.{build,runtime}`, which Astro 7.3.8 does not implement, or a dev server. One more test than upstream (passes). |
 | `endpoint-runtime.test.ts` | 3 | 0 | 3 | 0 | 0 | `Core\EndpointRuntimeTests.cs` | Fixture `core-endpoints` (the sources of upstream's `endpoint-routing`, `api-routes`, `non-html-pages` and `astro-public` in one project, `output: 'server'`); the dev server of upstream is the on-demand host. One more test than upstream (passes). |
 | `endpoint-response.test.ts` | 3 | 0 | 3 | 0 | 0 | `Core\EndpointResponseTests.cs` | Fixture `core-endpoints`; the dev server of upstream is the on-demand host; `Can bail on streaming` cancels a request that has no response yet, as the host buffers the response. |
@@ -63,7 +63,7 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
 | `astro-public.test.ts` | 5 | 4 | 1 | 0 | 0 | `Core\AstroPublicTests.cs` | Fixture `core-endpoints` with the prerendering variant; the `Public (dev)` test, adapted, runs against the on-demand build. Two more tests than upstream (pass). |
 | `page-format.test.ts` | 9 | 9 | 0 | 0 | 0 | `Core\PageFormatTests.cs` | Fixture `core-page-format` (static); the five builds of upstream are the JSON config variants of `build.format`, `base`, `trailingSlash` and `i18n`. |
 
-Total: 50 files, 401 `it`s = 165 ported, 87 adapted, 8 gap, 141 N/A.
+Total: 50 files, 401 `it`s = 167 ported, 87 adapted, 6 gap, 141 N/A.
 
 ## Differences
 
@@ -275,7 +275,9 @@ Total: 50 files, 401 `it`s = 165 ported, 87 adapted, 8 gap, 141 N/A.
 - `core-image.test.ts`: the upstream prod builds set `image.endpoint.entrypoint` to `astro/assets/endpoint/node`, which reads images from the file
   system; the port leaves the option alone, so the endpoint is the adapter's `astro-adapter-jint/image-endpoint` (it reads the local images through
   the host and shares Astro's `handleImageRequest`, so the status codes and bodies of the checks are Astro's). The image service is the adapter's
-  passthrough one where upstream uses a stub (`testImageService()`), and neither transforms an image. The endpoint answers with the type it finds in
+  passthrough one where upstream uses a stub (`testImageService()`), and neither transforms an image. The endpoint resolves a local `href` against the
+  directory of the client output and refuses what is not a file below it, as Astro's Node endpoint does (400 `Invalid request`), and the server entry
+  answers a `data:` URL that `fetch()` is asked for, which the engine cannot load (see the gaps `GAP-CORE-5` and `GAP-CORE-6`, both fixed). The endpoint answers with the type it finds in
   the bytes, so the three `image/webp` assertions for `f=webp` on a JPEG (`dev ssr` `serves the image at /_image` and `returns HEAD method ok for /_image`,
   `prod ssr` `can load images from public dir`) are `image/jpeg` here. `dev ssr` runs the dev server with `base: 'some-base'` and asks for
   `/src/assets/penguin1.jpg?origWidth=...`; the port uses the production build with `base: '/blog'` (the base of the SSR test of the base group) and the
@@ -382,25 +384,31 @@ Total: 50 files, 401 `it`s = 165 ported, 87 adapted, 8 gap, 141 N/A.
   comment disagree) or the `'auto'` of this adapter, which could give the environment its input in `astro:config:setup`. Reproduce: run the three tests
   without their `Skip` (the constant `GapCustomPrerenderer` of the class) or the wrapping-prerenderer test (the constant `WrappingPrerendererGap` of
   `ImageServiceTargetsTests`).
-- `GAP-CORE-5`: the engine cannot `fetch()` a `data:` URL, so the image endpoint answers 500 for an image that is a data URL. With
-  `image.remotePatterns: [{ protocol: 'data' }]`, `GET /_image?href=<data:image/svg+xml;base64,...>&f=svg` answers `500 Internal Server Error`, where Node
-  answers 200 `image/svg+xml`. `fetch('data:...')` in the engine rejects with `TypeError: Failed to fetch` for a string, a `URL` and a `Request`, with
-  `AstroOptions.FetchUrlFilter` allowing every URL (`new URL('data:...')` itself works): the fetch of Jint is HTTP(S) only (its assembly has no
-  `data:` handling), where the Fetch specification decodes the data URL into a response. The PNG data URL with `f=svg` is answered 403 before any fetch
-  (the format check), so that test passes. Every endpoint, route or component of a site that loads `data:` URLs with `fetch()` is affected, not only
-  the image endpoint. Suspected area: the `fetch` of the engine (the Jint web APIs, which the host configures with `AstroOptions.FetchUrlFilter`): it
-  could answer a `data:` URL itself. Skipped
-  test: `CoreImageTests.Endpoint_AllowsSvgFormat_ForAnSvgDataUri`; the non-upstream `Endpoint_AllowsSvgFormat_ForAnSvgFile` shows that an SVG that the endpoint can
-  read is served with `image/svg+xml`. Reproduce: run the skipped test without its `Skip`.
-- `GAP-CORE-6` (minor): a local `href` with parent directory segments (`/../../../.env`, `/foo/../../../.env`, `/foo\..\..\.env`, `/%2e%2e/.env`) makes the
+- `GAP-CORE-5` (fixed): the engine could not `fetch()` a `data:` URL, so the image endpoint answered 500 for an image that is a data URL. With
+  `image.remotePatterns: [{ protocol: 'data' }]`, `GET /_image?href=<data:image/svg+xml;base64,...>&f=svg` answered `500 Internal Server Error`, where Node
+  answers 200 `image/svg+xml`. `fetch('data:...')` in the engine rejected with `TypeError: Failed to fetch` for a string, a `URL` and a `Request`, with
+  `AstroOptions.FetchUrlFilter` allowing every URL (`new URL('data:...')` itself works): the fetch of Jint is HTTP(S) only (the preview that this
+  repository pins has a data URL helper that its `fetch` does not call), where the Fetch specification decodes the data URL into a response. Every
+  endpoint, route or component of a site that loads `data:` URLs with `fetch()` was affected, not only the image endpoint. Fix:
+  `packages/astro-adapter-jint/src/data-url.ts` (`withDataUrls`) wraps the `fetch` of the engine, and `server.ts` installs it when the module is evaluated. A
+  request for a `data:` URL (a string, a `URL` or a `Request`, with leading white space and the scheme in any case) is answered in the engine, as the standard
+  has it: 200 `OK`, the body percent-decoded or base64-decoded, `content-type` from the MIME type (`text/plain;charset=US-ASCII` when there is none),
+  the URL without its fragment as `response.url` (the endpoint asks `isRemoteAllowed(res.url, ...)`), and a `TypeError: Failed to fetch` for a URL that
+  cannot be decoded. Every other request goes to the original `fetch` with the arguments as they came. A `data:` URL never leaves the engine, so it does not reach
+  `AstroOptions.FetchUrlFilter`. Tests: `CoreImageTests.Endpoint_AllowsSvgFormat_ForAnSvgDataUri` (the PNG data URL with `f=svg` is answered 403 before any
+  fetch, the format check, and always passed) and `data-url.test.ts` of the adapter; the non-upstream `Endpoint_AllowsSvgFormat_ForAnSvgFile` shows that an SVG
+  that the endpoint reads from the output is served with `image/svg+xml`.
+- `GAP-CORE-6` (fixed, minor): a local `href` with parent directory segments (`/../../../.env`, `/foo/../../../.env`, `/foo\..\..\.env`, `/%2e%2e/.env`) made the
   image endpoint answer `404 Not Found` where Astro's endpoint answers `400 Invalid request`. `loadLocalImage` in
-  `packages/astro-adapter-jint/src/image-endpoint.ts` resolves `'.' + href` against `http://local.invalid/`, and the URL parser drops the `..` segments
+  `packages/astro-adapter-jint/src/image-endpoint.ts` resolved `'.' + href` against `http://local.invalid/`, and the URL parser drops the `..` segments
   that go above the root (`/../../../.env` becomes `/.env`), so the check for a path outside the output (`isParentDirectory` and `invalid-path` in Astro's
-  Node endpoint) never sees it. Nothing outside `dist/client` can be read this way, because the host looks the path up in the client output only
-  (`readClientBytes`): the non-upstream test `Endpoint_Answers404_ForParentDirectorySegments_WithoutServingAFileOutsideTheClientOutput` requests
-  `/../astro-jint.json` and `/../server/entry.mjs`, two files that exist next to `client`, and gets 404 for both. Suspected area: `loadLocalImage`
-  could resolve against a base with some depth (for example `http://local.invalid/x/`) and answer `invalid-path` when the result is not below it. Skipped test:
-  `CoreImageTests.Endpoint_Rejects_LocalPathsWithParentDirectorySegments`. Reproduce: run it without its `Skip`.
+  Node endpoint) never saw it. Nothing outside `dist/client` could be read that way, because the host looks the path up in the client output only
+  (`readClientBytes`): the non-upstream test `Endpoint_Answers400_ForParentDirectorySegments_WithoutServingAFileOutsideTheClientOutput` requests
+  `/../astro-jint.json` and `/../server/entry.mjs`, two files that exist next to `client`, and checks that none is read. Fix: the path is resolved against
+  `http://local.invalid/client/` (the constant `CLIENT_DIRECTORY`, a stand-in for the output directory), and a result that is not below `/client/`, or is the
+  directory itself, is `invalid-path`, which `handleImageRequest` answers with 400; the host is asked for the part after `/client`. Tests:
+  `CoreImageTests.Endpoint_Rejects_LocalPathsWithParentDirectorySegments`, the non-upstream test above, and `Endpoint_Answers400_ForTheClientOutputItself`
+  (`/`, `/.` and `/foo/..`, which Astro's endpoint refuses because the output directory is no file).
 
 ## Not applicable
 
