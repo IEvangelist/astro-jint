@@ -66,7 +66,7 @@ internal sealed class DistFolder : IDisposable
         .WithClientFile("robots.txt", "User-agent: *")
         .WithClientFile(".well-known/security.txt", "Contact: mailto:security@example.test")
         .WithClientFile("private/.env", "TOKEN=1")
-        .WithClientFile("blob.bin", Enumerable.Range(0, 1000).Select(i => (byte)i).ToArray());
+        .WithClientFile("blob.bin", [.. Enumerable.Range(0, 1000).Select(i => (byte)i)]);
 
     public DistFolder WithClientFile(string relativePath, string content) =>
         WithClientFile(relativePath, System.Text.Encoding.UTF8.GetBytes(content));

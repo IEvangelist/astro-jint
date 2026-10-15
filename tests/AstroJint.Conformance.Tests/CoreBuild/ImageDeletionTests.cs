@@ -123,8 +123,8 @@ public class ImageDeletionTests(SiteHost sites)
         var images = Glob(site, "markdocStillExists.*.*");
 
         AssertExtensions(images, ".jpg", ".webp");
-        await AssertLinkedAndServedAsync(site, "/blog/markdoc/", images.Single(image => image.EndsWith(".webp")));
-        await PageAssets.AssertServedAsync(site, $"/_astro/{images.Single(image => image.EndsWith(".jpg"))}");
+        await AssertLinkedAndServedAsync(site, "/blog/markdoc/", images.Single(image => image.EndsWith(".webp", StringComparison.Ordinal)));
+        await PageAssets.AssertServedAsync(site, $"/_astro/{images.Single(image => image.EndsWith(".jpg", StringComparison.Ordinal))}");
     }
 
     [Fact(DisplayName = "build ssg: should generate images optimized in getStaticPaths")]
@@ -214,8 +214,8 @@ public class ImageDeletionTests(SiteHost sites)
         var images = Glob(site, "shared.*.*");
 
         AssertExtensions(images, ".jpg", ".webp");
-        await AssertLinkedAndServedAsync(site, "/prerendered/", images.Single(image => image.EndsWith(".webp")));
-        await AssertLinkedAndServedAsync(site, "/", images.Single(image => image.EndsWith(".jpg")));
+        await AssertLinkedAndServedAsync(site, "/prerendered/", images.Single(image => image.EndsWith(".webp", StringComparison.Ordinal)));
+        await AssertLinkedAndServedAsync(site, "/", images.Single(image => image.EndsWith(".jpg", StringComparison.Ordinal)));
     }
 
     [Fact(DisplayName = "build ssr: should optimize images on demand once the build is done")]

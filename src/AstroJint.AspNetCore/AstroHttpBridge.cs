@@ -89,7 +89,7 @@ internal static class AstroHttpBridge
         {
             if (!HopByHopHeaders.Contains(header.Key))
             {
-                headers.Add(new(header.Key, new StringValues(header.Value.ToArray())));
+                headers.Add(new(header.Key, new StringValues([.. header.Value])));
             }
         }
 
@@ -200,7 +200,7 @@ internal static class AstroHttpBridge
                     throw new AstroRequestBodyTooLargeException();
                 }
 
-                body.Write(chunk, 0, read);
+                await body.WriteAsync(chunk.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
             }
         }
         finally

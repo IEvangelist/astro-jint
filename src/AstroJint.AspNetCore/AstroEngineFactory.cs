@@ -1,7 +1,6 @@
 using System.Security.Cryptography;
 using Jint;
 using Jint.Native;
-using Jint.Native.Object;
 using Jint.Runtime.Interop;
 using Jint.WebApi;
 
@@ -60,7 +59,7 @@ internal sealed class AstroEngineFactory(
 
         try
         {
-            engine.Execute(Prelude);
+            await engine.ExecuteAsync(Prelude).ConfigureAwait(false);
             engine.SetValue("__astroJint", CreateHostObject(engine, context));
             var entryExports = await engine.Modules.ImportAsync(_modules.Entry).ConfigureAwait(false);
             engine.WebApi.SetFetchHandler(entryExports.Get("default"));
@@ -75,7 +74,7 @@ internal sealed class AstroEngineFactory(
 
     // The bundle reads this object while it is evaluated (see packages/astro-adapter-jint/src/server.ts), so it
     // has to exist before the module is imported. It only holds plain functions, no .NET objects.
-    private ObjectInstance CreateHostObject(Engine engine, AstroRequestContext context)
+    private JsObject CreateHostObject(Engine engine, AstroRequestContext context)
     {
         var host = new JsObject(engine);
         Add("clientAddress", _ => ToJs(context.ClientAddress));

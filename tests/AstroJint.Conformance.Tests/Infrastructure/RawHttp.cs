@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Sockets;
 using System.Text;
 
@@ -9,7 +10,11 @@ public sealed record RawResponse(int StatusCode, IReadOnlyList<KeyValuePair<stri
     public string Text => Encoding.UTF8.GetString(Body);
 
     /// <summary>The first value of the header, or <see langword="null"/>.</summary>
-    public string? Header(string name) => HeaderValues(name).FirstOrDefault();
+    public string? Header(string name)
+    {
+        var values = HeaderValues(name);
+        return values.Count > 0 ? values[0] : null;
+    }
 
     public IReadOnlyList<string> HeaderValues(string name) =>
         [.. Headers.Where(header => header.Key.Equals(name, StringComparison.OrdinalIgnoreCase)).Select(header => header.Value)];
@@ -75,7 +80,7 @@ internal static class RawHttp
         }
 
         var lines = Encoding.UTF8.GetString(bytes, 0, end).Split("\r\n");
-        var statusCode = int.Parse(lines[0].Split(' ', 3)[1]);
+        var statusCode = int.Parse(lines[0].Split(' ', 3)[1], CultureInfo.InvariantCulture);
         var headers = new List<KeyValuePair<string, string>>();
         foreach (var line in lines.Skip(1))
         {

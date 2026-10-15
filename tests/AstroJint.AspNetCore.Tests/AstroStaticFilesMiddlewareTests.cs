@@ -544,7 +544,7 @@ public class AstroStaticFilesMiddlewareTests
         using var dist = SiteWithStaticHeaders();
         await using var site = await TestSite.StartAsync(dist, configureApp: app => app.Use((context, next) =>
         {
-            context.Response.Headers["Content-Security-Policy"] = "default-src *";
+            context.Response.Headers.ContentSecurityPolicy = "default-src *";
             return next(context);
         }));
 

@@ -20,9 +20,12 @@ namespace AstroJint.Conformance.CoreBuild;
 /// </para>
 /// </summary>
 [Trait("Upstream", "core/incremental-build-islands.test.ts")]
-public class IncrementalBuildIslandsTests(SiteHost sites)
+public partial class IncrementalBuildIslandsTests(SiteHost sites)
 {
     private const string Fixture = "cb-incremental-islands";
+
+    [GeneratedRegex("""fetch\((["'])(/_server-islands/[^"']+)\1""")]
+    private static partial Regex ServerIslandFetch();
 
     [Fact(DisplayName = "busts server-island pages when the key changes but keeps other pages cached")]
     public async Task AChangedKey_RendersThePageWithAnIslandAgainAndRestoresTheOthers()
@@ -49,7 +52,7 @@ public class IncrementalBuildIslandsTests(SiteHost sites)
         var page = await PageAssets.PageAsync(site, "/island/a/");
         Assert.Equal("Island A", page.QuerySelector("h1")?.TextContent);
 
-        var island = Regex.Match(islandHtml, """fetch\((["'])(/_server-islands/[^"']+)\1""");
+        var island = ServerIslandFetch().Match(islandHtml);
         Assert.True(island.Success, "the HTML should include the server island URL");
         using var response = await site.GetAsync(island.Groups[2].Value);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

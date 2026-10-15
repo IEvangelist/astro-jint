@@ -15,9 +15,12 @@ namespace AstroJint.Conformance.CoreBuild;
 /// </para>
 /// </summary>
 [Trait("Upstream", "core/css-inline-stylesheets.test.ts")]
-public class CssInlineStylesheetsTests(SiteHost sites)
+public partial class CssInlineStylesheetsTests(SiteHost sites)
 {
     private const string Fixture = "cb-css-inline";
+
+    [GeneratedRegex("cubic-bezier")]
+    private static partial Regex CubicBezier();
 
     /// <summary>The config of a variant; the <c>auto</c> variants lower the inline limit like upstream does.</summary>
     internal static object Variant(string output, string inlineStylesheets) => inlineStylesheets == "auto"
@@ -108,6 +111,6 @@ public class CssInlineStylesheetsTests(SiteHost sites)
         var styles = await StylesAsync(output, inlineStylesheets);
 
         // authored in components/Button.astro
-        Assert.Equal(1, Regex.Count(styles, "cubic-bezier"));
+        Assert.Equal(1, CubicBezier().Count(styles));
     }
 }

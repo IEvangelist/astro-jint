@@ -32,7 +32,9 @@ public sealed class ConformanceSite : IAsyncDisposable
             AllowAutoRedirect = false,
             UseCookies = false,
             AutomaticDecompression = DecompressionMethods.None,
+#pragma warning disable CA5359 // Tests only: the host under test answers TLS with a self-signed certificate on a loopback socket.
             SslOptions = { RemoteCertificateValidationCallback = (_, _, _, _) => true },
+#pragma warning restore CA5359
         })
         {
             BaseAddress = BaseAddress,

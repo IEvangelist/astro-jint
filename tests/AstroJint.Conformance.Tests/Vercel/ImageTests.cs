@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Web;
 
@@ -106,7 +107,7 @@ public class ImageTests(SiteHost sites)
         var entries = srcset.Split(", ").Select(entry => entry.Split(' ')).ToList();
         Assert.True(entries.Count > 1);
         Assert.All(entries, entry => Assert.Equal(2, entry.Length));
-        var widths = entries.Select(entry => int.Parse(entry[1].TrimEnd('w'))).ToList();
+        var widths = entries.Select(entry => int.Parse(entry[1].TrimEnd('w'), CultureInfo.InvariantCulture)).ToList();
         Assert.Equal(widths.Order().Distinct().ToList(), widths);
         foreach (var (url, descriptor) in entries.Select(entry => (entry[0], entry[1])))
         {

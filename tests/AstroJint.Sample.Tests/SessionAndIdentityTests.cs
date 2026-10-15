@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 
 namespace AstroJint.Sample;
@@ -6,7 +7,7 @@ namespace AstroJint.Sample;
 public class SessionAndIdentityTests(SampleSite site)
 {
     private static async Task<int> VisitAsync(HttpClient client) =>
-        int.Parse((await (await client.GetAsync("/session")).ReadHtmlAsync()).Text("#visits"));
+        int.Parse((await (await client.GetAsync("/session")).ReadHtmlAsync()).Text("#visits"), CultureInfo.InvariantCulture);
 
     private static async Task<string> WhoAmIAsync(HttpClient client) =>
         (await (await client.GetAsync("/me")).ReadHtmlAsync()).Text("#user");

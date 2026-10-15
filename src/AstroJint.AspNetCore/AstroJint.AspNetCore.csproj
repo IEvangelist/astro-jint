@@ -4,6 +4,11 @@
     <RootNamespace>AstroJint.AspNetCore</RootNamespace>
     <Description>Hosts the on-demand part of an Astro site inside ASP.NET Core by running the Astro server bundle in Jint.</Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Every performance rule, including the ones the default set leaves off, as the host is on the path of each request. -->
+    <AnalysisModePerformance>All</AnalysisModePerformance>
+    <!-- A diagnostic of the analyzers fails the build here; the packages' advisories do not, as they change without a commit. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
   </PropertyGroup>
 
   <ItemGroup>

@@ -4,6 +4,9 @@
     <RootNamespace>HybridHost</RootNamespace>
     <!-- One engine per core scales best with the server garbage collector (docs/spikes/03-engine-pool-performance.md). -->
     <ServerGarbageCollection>true</ServerGarbageCollection>
+    <AnalysisModePerformance>All</AnalysisModePerformance>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
     <SiteDirectory>$(MSBuildThisFileDirectory)..\hybrid\</SiteDirectory>
     <RepositoryRoot>$(MSBuildThisFileDirectory)..\..\</RepositoryRoot>
   </PropertyGroup>

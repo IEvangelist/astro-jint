@@ -7,6 +7,8 @@ namespace AstroJint.AspNetCore.Tests;
 /// <summary>What the host tells the bundle: <c>clientAddress</c>, <c>locals</c>, <c>env</c>, <c>readClientFile</c>, <c>readClientBytes</c>, <c>readClientHeaders</c> and <c>sha256</c>.</summary>
 public class AstroHostContextTests
 {
+    private static readonly string[] AdminAndDev = ["admin", "dev"];
+
     [Fact]
     public async Task ClientAddress_IsNullWhenTheConnectionHasNoRemoteAddress()
     {
@@ -44,7 +46,7 @@ public class AstroHostContextTests
             options.LocalsFactory = context => new
             {
                 UserName = "ada",
-                Roles = new[] { "admin", "dev" },
+                Roles = AdminAndDev,
                 Path = context.Request.Path.Value,
             });
 

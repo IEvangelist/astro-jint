@@ -19,7 +19,6 @@ internal sealed partial class AstroApp : IAsyncDisposable
 
     private readonly AstroOptions _options;
     private readonly ILogger<AstroApp> _logger;
-    private readonly EnginePool<AstroEngineSlot> _pool;
 
     public AstroApp(IOptions<AstroOptions> options, IHostEnvironment environment, ILoggerFactory loggerFactory, IDistributedCache sessionCache)
     {
@@ -41,7 +40,7 @@ internal sealed partial class AstroApp : IAsyncDisposable
         var consoleSink = new LoggerConsoleSink(loggerFactory.CreateLogger(LoggerConsoleSink.Category));
         var sessions = new AstroSessionStore(sessionCache, _options.SessionIdleTimeout, loggerFactory.CreateLogger<AstroSessionStore>());
         var factory = new AstroEngineFactory(_options, entryPath, ReadClientFile, ReadClientBytes, ReadClientHeaders, sessions, consoleSink);
-        _pool = new EnginePool<AstroEngineSlot>(_options.PoolSize, factory.CreateAsync, logger);
+        Pool = new EnginePool<AstroEngineSlot>(_options.PoolSize, factory.CreateAsync, logger);
 
         LogLoaded(logger, Manifest.AstroVersion ?? "unknown", DistPath, Files.Count, _options.PoolSize);
     }
@@ -54,14 +53,15 @@ internal sealed partial class AstroApp : IAsyncDisposable
 
     public AstroStaticFileResolver Files { get; }
 
-    public EnginePool<AstroEngineSlot> Pool => _pool;
+    public EnginePool<AstroEngineSlot> Pool { get; }
 
     /// <summary>Creates all engines now, so that on-demand requests do not wait for them.</summary>
     public async Task WarmUpAsync()
     {
         var started = Stopwatch.GetTimestamp();
-        await _pool.WarmUpAsync().ConfigureAwait(false);
-        LogWarmedUp(_logger, _pool.Reserved, _pool.Size, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+        await Pool.WarmUpAsync().ConfigureAwait(false);
+        var elapsed = Stopwatch.GetElapsedTime(started);
+        LogWarmedUp(_logger, Pool.Reserved, Pool.Size, elapsed.TotalMilliseconds);
     }
 
     /// <summary>Renders the request with Astro's on-demand runtime and writes the response.</summary>
@@ -100,7 +100,7 @@ internal sealed partial class AstroApp : IAsyncDisposable
         }
     }
 
-    public ValueTask DisposeAsync() => _pool.DisposeAsync();
+    public ValueTask DisposeAsync() => Pool.DisposeAsync();
 
     // Returns null when the outcome (an error status, or a client that left) has already been dealt with.
     private async Task<AstroResponse?> RenderCoreAsync(HttpContext context, HttpRequestMessage request)
@@ -120,7 +120,7 @@ internal sealed partial class AstroApp : IAsyncDisposable
         AstroEngineSlot? slot = null;
         try
         {
-            slot = await _pool.RentAsync(token).ConfigureAwait(false);
+            slot = await Pool.RentAsync(token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -130,7 +130,7 @@ internal sealed partial class AstroApp : IAsyncDisposable
         {
             if (slot is not null)
             {
-                _pool.Return(slot, discard: false);
+                Pool.Return(slot, discard: false);
             }
 
             if (!aborted.IsCancellationRequested)
@@ -186,7 +186,7 @@ internal sealed partial class AstroApp : IAsyncDisposable
         finally
         {
             slot.Context.Clear();
-            _pool.Return(slot, discard);
+            Pool.Return(slot, discard);
         }
     }
 

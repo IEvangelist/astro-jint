@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Primitives;
@@ -35,7 +36,8 @@ internal sealed class AstroStaticFilesMiddleware(RequestDelegate next, AstroApp 
         {
             StaticFileMatchKind.File => ServeAsync(context, match),
             StaticFileMatchKind.Redirect => RedirectAsync(context, match.Path!),
-            _ => next(context),
+            StaticFileMatchKind.None => next(context),
+            _ => throw new UnreachableException(),
         };
     }
 

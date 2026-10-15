@@ -24,9 +24,12 @@ namespace AstroJint.Conformance.Netlify;
 /// </para>
 /// </summary>
 [Trait("Upstream", "netlify/functions/edge-middleware.test.ts")]
-public class EdgeMiddlewareTests(SiteHost sites)
+public partial class EdgeMiddlewareTests(SiteHost sites)
 {
     private const string Fixture = "netlify-functions";
+
+    [GeneratedRegex(@"Only relative imports of files in the server bundle are supported in module 'chunks/_virtual_astro_middleware_[\w-]+\.mjs': 'node:https'")]
+    private static partial Regex BundleImportError();
 
     [Fact(DisplayName = "middlewareMode: classic: emits no edge function")]
     public async Task Classic_EmitsNoEdgeFunction()
@@ -74,9 +77,7 @@ public class EdgeMiddlewareTests(SiteHost sites)
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         Assert.Contains(site.Logs, entry =>
             entry.Level == LogLevel.Error
-            && Regex.IsMatch(
-                entry.Message,
-                @"Only relative imports of files in the server bundle are supported in module 'chunks/_virtual_astro_middleware_[\w-]+\.mjs': 'node:https'"));
+            && BundleImportError().IsMatch(entry.Message));
 
         using var prerendered = await site.GetAsync("/prerender");
         Assert.Equal(HttpStatusCode.OK, prerendered.StatusCode);

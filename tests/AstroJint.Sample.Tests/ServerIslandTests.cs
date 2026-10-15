@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Text.RegularExpressions;
 
@@ -12,7 +13,10 @@ public partial class ServerIslandTests(SampleSite site)
     [GeneratedRegex(@"fetch\(""(?<url>/_server-islands/[^""]+)""")]
     private static partial Regex IslandRequest();
 
-    private async Task<string> FindIslandUrlAsync(HttpClient client)
+    [GeneratedRegex("e=[^&]+")]
+    private static partial Regex EncryptedProps();
+
+    private static async Task<string> FindIslandUrlAsync(HttpClient client)
     {
         var script = await client.GetStringAsync("/");
         var match = IslandRequest().Match(script);
@@ -50,7 +54,7 @@ public partial class ServerIslandTests(SampleSite site)
         Assert.StartsWith("Server time: ", first.Text("#server-clock"));
         Assert.NotEqual(first.Text("#server-clock time"), second.Text("#server-clock time"));
         Assert.InRange(
-            DateTimeOffset.Parse(first.Text("#server-clock time")),
+            DateTimeOffset.Parse(first.Text("#server-clock time"), CultureInfo.InvariantCulture),
             DateTimeOffset.UtcNow.AddMinutes(-1),
             DateTimeOffset.UtcNow.AddMinutes(1));
     }
@@ -60,7 +64,7 @@ public partial class ServerIslandTests(SampleSite site)
     {
         using var client = site.CreateClient();
         var url = await FindIslandUrlAsync(client);
-        var forged = Regex.Replace(url, "e=[^&]+", "e=00000000000000000000000000000000");
+        var forged = EncryptedProps().Replace(url, "e=00000000000000000000000000000000");
 
         using var response = await client.GetAsync(forged);
 

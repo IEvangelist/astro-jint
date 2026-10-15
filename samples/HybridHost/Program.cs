@@ -56,5 +56,3 @@ app.MapGet("/sign-out", async (HttpContext context) =>
 app.UseAstro();
 
 app.Run();
-
-public partial class Program;

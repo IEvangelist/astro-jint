@@ -19,21 +19,26 @@ namespace AstroJint.Conformance.CoreBuild;
 /// </para>
 /// </summary>
 [Trait("Upstream", "core/featuresSupport.test.ts")]
-public class FeaturesSupportTests(SiteHost sites)
+public partial class FeaturesSupportTests(SiteHost sites)
 {
+    private static readonly string[] Locales = ["en", "es"];
+
+    [GeneratedRegex("does not currently support the feature")]
+    private static partial Regex UnsupportedFeatureMessage();
+
     [Fact(DisplayName = "should error if the adapter doesn't support edge middleware")]
     public async Task ReportsTheFeatureThatTheAdapterDoesNotSupport()
     {
         var site = await sites.GetAsync("cb-server-entry", new
         {
-            i18n = new { locales = new[] { "en", "es" }, defaultLocale = "en", domains = new { } },
+            i18n = new { locales = Locales, defaultLocale = "en", domains = new { } },
         });
 
         var log = site.BuildLog;
 
         Assert.Contains("The adapter astro-adapter-jint does not currently support the feature \"i18nDomains\". Your project may not build correctly.", log);
         // The features the adapter supports (server output here) are not reported.
-        Assert.Single(Regex.Matches(log, "does not currently support the feature"));
+        Assert.Single(UnsupportedFeatureMessage().Matches(log));
         using var response = await site.GetAsync("/");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }

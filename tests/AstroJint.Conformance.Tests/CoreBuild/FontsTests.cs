@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -91,7 +92,7 @@ public partial class FontsTests(SiteHost sites)
         var url = (await FontDataUrlsAsync(site, $"{basePath}/font-data"))[0];
         using var font = await site.GetAsync(PageAssets.HostTarget(url, basePath, assetsDir));
         Assert.Equal(HttpStatusCode.OK, font.StatusCode);
-        Assert.Equal((await font.Content.ReadAsByteArrayAsync()).Length.ToString(), length);
+        Assert.Equal((await font.Content.ReadAsByteArrayAsync()).Length.ToString(CultureInfo.InvariantCulture), length);
     }
 
     [Theory(DisplayName = "Includes styles")]

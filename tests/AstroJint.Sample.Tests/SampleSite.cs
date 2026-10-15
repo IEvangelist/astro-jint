@@ -25,7 +25,7 @@ public sealed class SampleSite : IAsyncDisposable
     public SampleSite() => _default = Create(new Dictionary<string, string?>());
 
     /// <summary>The output of <c>astro build</c> that the hosts serve.</summary>
-    public string DistPath => Dist;
+    public string DistPath { get; } = Dist;
 
     /// <summary>Talks to the default host. Redirects are not followed, so that tests see them.</summary>
     /// <param name="cookies">Keeps the cookies of the responses and sends them back, as a browser does.</param>

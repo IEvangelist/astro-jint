@@ -202,7 +202,7 @@ public class AstroHttpBridgeTests
     public async Task CreateRequest_CopiesHeaders()
     {
         var context = CreateContext();
-        context.Request.Headers["Accept"] = "text/html";
+        context.Request.Headers.Accept = "text/html";
         context.Request.Headers["X-Custom"] = new StringValues(["a", "b"]);
 
         using var request = await AstroHttpBridge.CreateRequestAsync(context.Request, 1024, CancellationToken.None);

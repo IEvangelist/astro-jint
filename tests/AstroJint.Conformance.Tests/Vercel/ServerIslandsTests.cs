@@ -19,9 +19,12 @@ namespace AstroJint.Conformance.Vercel;
 /// </para>
 /// </summary>
 [Trait("Upstream", "vercel/server-islands.test.ts")]
-public class ServerIslandsTests(SiteHost sites)
+public partial class ServerIslandsTests(SiteHost sites)
 {
     private const string ServerIslandsRoute = "/_server-islands/[name]";
+
+    [GeneratedRegex("""fetch\((["'])(/_server-islands/[^"']+)\1""")]
+    private static partial Regex ServerIslandFetch();
 
     [Fact(DisplayName = "server islands route is in the config")]
     public async Task ServerIslandsRoute_InAServerBuild_IsInTheManifestAndAnswers()
@@ -89,7 +92,7 @@ public class ServerIslandsTests(SiteHost sites)
 
     private static string IslandUrl(string html)
     {
-        var match = Regex.Match(html, """fetch\((["'])(/_server-islands/[^"']+)\1""");
+        var match = ServerIslandFetch().Match(html);
 
         Assert.True(match.Success, "the HTML should include the server island URL");
         return match.Groups[2].Value;

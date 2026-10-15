@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace AstroJint.Conformance.Node;
 
 /// <summary>
@@ -130,7 +132,7 @@ public class HeadersTests(SiteHost sites)
         var response = await site.SendRawAsync("/astro/component-simple");
 
         Assert.Equal(200, response.StatusCode);
-        Assert.Equal(response.Body.Length.ToString(), response.Header("Content-Length"));
+        Assert.Equal(response.Body.Length.ToString(CultureInfo.InvariantCulture), response.Header("Content-Length"));
         Assert.Null(response.Header("Transfer-Encoding"));
         Assert.Contains("<p>hello world</p>", response.Text);
     }

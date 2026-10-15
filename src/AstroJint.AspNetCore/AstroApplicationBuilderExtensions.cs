@@ -25,10 +25,14 @@ public static class AstroApplicationBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
+        // The default fallback pattern, {*path:nonfile}, would skip URLs with a file extension (/feed.xml, /api/data.json).
+        // Nothing binds the parameter: the request is rendered from the HttpContext.
+#pragma warning disable ASP0018
         return endpoints
             .MapFallback("{**path}", context => context.RequestServices.GetRequiredService<AstroApp>().RenderAsync(context))
             .WithDisplayName("Astro")
             .WithMetadata(AstroEndpointMetadata.Instance);
+#pragma warning restore ASP0018
     }
 
     /// <summary>

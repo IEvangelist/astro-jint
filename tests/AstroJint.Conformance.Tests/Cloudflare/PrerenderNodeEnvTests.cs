@@ -28,8 +28,10 @@ namespace AstroJint.Conformance.Cloudflare;
 /// prerender env)", "renders SSR page through workerd with Astro.request.cf").
 /// </summary>
 [Trait("Upstream", "cloudflare/prerender-node-env.test.ts")]
-public class PrerenderNodeEnvTests(SiteHost sites)
+public partial class PrerenderNodeEnvTests(SiteHost sites)
 {
+    [GeneratedRegex("""fetch\(["'](/_server-islands/[^"']+)["']""")]
+    private static partial Regex ServerIslandFetch();
     [Fact(DisplayName = "renders prerendered page using Node.js APIs")]
     public async Task RendersAPageThatUsesNodeApis()
     {
@@ -52,7 +54,7 @@ public class PrerenderNodeEnvTests(SiteHost sites)
         var html = await page.ReadTextAsync();
         Assert.Contains("id=\"deferred-fallback\"", html);
 
-        var island = Regex.Match(html, "fetch\\([\"'](/_server-islands/[^\"']+)[\"']");
+        var island = ServerIslandFetch().Match(html);
         Assert.True(island.Success, "Expected prerendered HTML to include a server island fetch URL");
 
         using var islandResponse = await site.GetAsync(island.Groups[1].Value);

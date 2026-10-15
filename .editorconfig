@@ -16,3 +16,25 @@ indent_size = 2
 
 [*.md]
 trim_trailing_whitespace = false
+
+# Analyzers
+# Directory.Build.props runs the .NET analyzers in Recommended mode and enforces the code style rules in the build.
+[*.cs]
+# A regression in an allocation or in a call shows in the build instead of in a profile.
+dotnet_analyzer_diagnostic.category-Performance.severity = warning
+
+# The style the sources follow, so that the editor and the build suggest the same things.
+csharp_style_namespace_declarations = file_scoped:suggestion
+csharp_style_var_for_built_in_types = true:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_var_elsewhere = true:suggestion
+csharp_style_expression_bodied_methods = when_on_single_line:silent
+csharp_style_expression_bodied_constructors = when_on_single_line:silent
+csharp_style_expression_bodied_local_functions = when_on_single_line:silent
+csharp_prefer_braces = true:suggestion
+
+[tests/**.cs]
+# Test names read as Method_Scenario_Outcome.
+dotnet_diagnostic.CA1707.severity = none
+# A skipped test documents a known gap (GAP-*): the reason names it and docs/conformance lists it.
+dotnet_diagnostic.xUnit1004.severity = none

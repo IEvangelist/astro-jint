@@ -26,9 +26,15 @@ namespace AstroJint.Conformance.Cloudflare;
 /// </list>
 /// </summary>
 [Trait("Upstream", "cloudflare/custom-entryfile-fetch-state.test.ts")]
-public class CustomEntryfileFetchStateTests(SiteHost sites)
+public partial class CustomEntryfileFetchStateTests(SiteHost sites)
 {
     private const string Fixture = "cf-pages";
+
+    [GeneratedRegex("repro=1")]
+    private static partial Regex ReproCookie();
+
+    [GeneratedRegex("astro-session=[^;,]+")]
+    private static partial Regex SessionCookie();
 
     [Fact(DisplayName = "renders an SSR page from a state built with new FetchState(request)")]
     public async Task RendersAnSsrPage()
@@ -48,7 +54,7 @@ public class CustomEntryfileFetchStateTests(SiteHost sites)
 
         using var response = await site.GetAsync("/fetch-state");
 
-        Assert.Single(Regex.Matches(string.Join(", ", response.HeaderValues("Set-Cookie")), "repro=1"));
+        Assert.Single(ReproCookie().Matches(string.Join(", ", response.HeaderValues("Set-Cookie"))));
     }
 
     [Fact(DisplayName = "preserves a session across requests")]
@@ -57,7 +63,7 @@ public class CustomEntryfileFetchStateTests(SiteHost sites)
         var site = await sites.GetAsync(Fixture);
 
         using var first = await site.GetAsync("/session");
-        var sessionCookie = Regex.Match(string.Join(", ", first.HeaderValues("Set-Cookie")), "astro-session=[^;,]+").Value;
+        var sessionCookie = SessionCookie().Match(string.Join(", ", first.HeaderValues("Set-Cookie"))).Value;
         Assert.NotEmpty(sessionCookie);
         Assert.Matches("count: 1", await first.ReadTextAsync());
 

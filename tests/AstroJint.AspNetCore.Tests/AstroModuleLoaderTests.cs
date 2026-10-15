@@ -153,7 +153,7 @@ public class AstroModuleLoaderTests
         var result = await site.GetJsonAsync($"{endpoint}?specifier={Uri.EscapeDataString(specifier)}");
 
         Assert.False(result.GetProperty("ok").GetBoolean(), result.ToString());
-        var error = result.GetProperty("error").GetString()!;
+        var error = result.GetProperty("error").GetString();
         Assert.Contains(reason, error);
         Assert.DoesNotContain(dist.Root, error);
     }

@@ -8,7 +8,7 @@ namespace AstroJint.Conformance.Cloudflare;
 /// What the image tests of the Cloudflare adapter have in common: where the build wrote the pictures and the markup for them,
 /// and the reasons of the tests that wait for an image service that converts pictures.
 /// </summary>
-internal static class CfImages
+internal static partial class CfImages
 {
     public const string BuildConversionGap = "GAP-CF-5: the adapter replaces Sharp with a pass-through image service, so the build copies every picture with its format and size";
 
@@ -27,12 +27,15 @@ internal static class CfImages
     public static Task<byte[]> ReadClientFileAsync(ConformanceSite site, string url) =>
         File.ReadAllBytesAsync(Path.Combine(site.DistPath, "client", url.TrimStart('/')));
 
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex Whitespace();
+
     /// <summary>The URLs in the <c>srcset</c> (or else the <c>src</c>) of the elements that match the selector.</summary>
     public static List<string> Srcs(IDocument document, string selector) =>
         [.. document.QuerySelectorAll(selector)
             .Select(element => element.GetAttribute("srcset") ?? element.GetAttribute("src"))
             .OfType<string>()
-            .SelectMany(value => value.Split(',').Select(part => Regex.Split(part.Trim(), @"\s+")[0]))];
+            .SelectMany(value => value.Split(',').Select(part => Whitespace().Split(part.Trim())[0]))];
 
     /// <summary>All JavaScript of the server output, which is where the image service of the site is bundled.</summary>
     public static string ReadServerBundle(ConformanceSite site) =>

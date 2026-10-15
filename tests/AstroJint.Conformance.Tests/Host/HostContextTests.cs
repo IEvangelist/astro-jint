@@ -10,6 +10,8 @@ public class HostContextTests(SiteHost sites)
 {
     private const string Fixture = "jint-host-context";
 
+    private static readonly string[] AdminAndEditor = ["admin", "editor"];
+
     [Fact]
     public async Task ClientAddress_IsTheRemoteAddressOfTheConnection()
     {
@@ -34,7 +36,7 @@ public class HostContextTests(SiteHost sites)
     public async Task Locals_AreProducedByTheHostForEveryRequest()
     {
         var site = await sites.GetAsync(Fixture, variant: "locals", configure: options =>
-            options.LocalsFactory = context => new { user = "ada", path = context.Request.Path.Value, roles = new[] { "admin", "editor" } });
+            options.LocalsFactory = context => new { user = "ada", path = context.Request.Path.Value, roles = AdminAndEditor });
 
         var first = await site.GetHtmlAsync("/locals");
         var second = await site.GetHtmlAsync("/locals?again");
