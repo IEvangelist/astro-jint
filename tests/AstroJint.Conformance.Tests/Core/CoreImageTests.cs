@@ -37,13 +37,14 @@ namespace AstroJint.Conformance.Core;
 /// <c>./src/custom-endpoint.ts</c>. Here the same option is set on the SSR fixture (the file is a copy of the upstream one, which is not in the
 /// SSR fixture upstream) and the page's own image URL is requested (adapted). The adapter only sets its endpoint when the option is
 /// unset, so the user's endpoint answers.</item>
-/// <item><c>allows f=svg for an actual SVG data: URI</c> is skipped (<c>GAP-CORE-5</c>): <c>fetch()</c> of the engine cannot load a
-/// <c>data:</c> URL, so the endpoint answers 500. The non-upstream test <c>Endpoint_AllowsSvgFormat_ForAnSvgFile</c> shows that an SVG that the
-/// endpoint can read (<c>public/pixel.svg</c>, a file that only this port has) is served with <c>image/svg+xml</c>.</item>
-/// <item><c>returns 400 for local paths with parent directory segments</c> is skipped (<c>GAP-CORE-6</c>): the endpoint resolves the
-/// <c>..</c> segments against the root of the client output, so it answers 404 where Node answers 400. The non-upstream test
-/// <c>Endpoint_Answers404_ForParentDirectorySegments_WithoutServingAFileOutsideTheClientOutput</c> checks that no file next to the client
-/// output (<c>astro-jint.json</c>, <c>server/entry.mjs</c>) can be read that way.</item>
+/// <item><c>allows f=svg for an actual SVG data: URI</c> needs the adapter: <c>fetch()</c> of the engine cannot load a <c>data:</c> URL, so the
+/// adapter's server entry answers it itself (<c>data-url.ts</c>). The non-upstream test <c>Endpoint_AllowsSvgFormat_ForAnSvgFile</c> shows that
+/// an SVG that the endpoint can read (<c>public/pixel.svg</c>, a file that only this port has) is served with <c>image/svg+xml</c>.</item>
+/// <item><c>returns 400 for local paths with parent directory segments</c> needs the endpoint to resolve a path against a directory, as the
+/// Node one does, and not against a root, where <c>/../x</c> is <c>/x</c>. The non-upstream test
+/// <c>Endpoint_Answers400_ForParentDirectorySegments_WithoutServingAFileOutsideTheClientOutput</c> checks that no file next to the client
+/// output (<c>astro-jint.json</c>, <c>server/entry.mjs</c>) can be read that way, and
+/// <c>Endpoint_Answers400_ForTheClientOutputItself</c> that the directory is refused, as Node refuses it (it is no file).</item>
 /// </list>
 /// The groups that remain (the dev server with a static site, the static builds, the errors of the asset pipeline) are explained in
 /// <c>docs/conformance/core.md</c>.
@@ -283,9 +284,7 @@ public class CoreImageTests(SiteHost sites)
         Assert.Equal(HttpStatusCode.OK, home.StatusCode);
     }
 
-    [Fact(
-        DisplayName = "prod ssr: returns 400 for local paths with parent directory segments",
-        Skip = "GAP-CORE-6: the adapter's image endpoint resolves the segments against the root (/../x is /x) and answers 404 Not Found instead of 400 Invalid request.")]
+    [Fact(DisplayName = "prod ssr: returns 400 for local paths with parent directory segments")]
     public async Task Endpoint_Rejects_LocalPathsWithParentDirectorySegments()
     {
         var site = await sites.GetAsync(Fixture);
@@ -300,19 +299,33 @@ public class CoreImageTests(SiteHost sites)
     }
 
     [Fact(DisplayName = "Not upstream: prod ssr: local paths with parent directory segments never reach a file outside the client output")]
-    public async Task Endpoint_Answers404_ForParentDirectorySegments_WithoutServingAFileOutsideTheClientOutput()
+    public async Task Endpoint_Answers400_ForParentDirectorySegments_WithoutServingAFileOutsideTheClientOutput()
     {
         var site = await sites.GetAsync(Fixture);
         // Real files that sit next to the client output. The requests below must not be able to read them.
         Assert.True(site.PathExists("astro-jint.json"));
         Assert.True(site.PathExists("server/entry.mjs"));
 
-        foreach (var path in ParentDirectoryPaths.Concat(["/../astro-jint.json", "/../server/entry.mjs", "/foo/../../server/entry.mjs"]))
+        foreach (var path in new[] { "/../astro-jint.json", "/../server/entry.mjs", "/foo/../../server/entry.mjs" })
         {
             var response = await site.SendRawAsync("/_image?href=" + Uri.EscapeDataString(path));
 
-            Assert.True(response.StatusCode == 404, $"Path \"{path}\" should return 404, not {response.StatusCode}.");
-            Assert.Equal("Not Found", response.Text);
+            Assert.True(response.StatusCode == 400, $"Path \"{path}\" should return 400, not {response.StatusCode}.");
+            Assert.Equal("Invalid request", response.Text);
+        }
+    }
+
+    [Fact(DisplayName = "Not upstream: prod ssr: the directory of the client output is no image to load")]
+    public async Task Endpoint_Answers400_ForTheClientOutputItself()
+    {
+        var site = await sites.GetAsync(Fixture);
+
+        foreach (var path in new[] { "/", "/.", "/foo/.." })
+        {
+            var response = await site.SendRawAsync("/_image?href=" + Uri.EscapeDataString(path));
+
+            Assert.True(response.StatusCode == 400, $"Path \"{path}\" should return 400, not {response.StatusCode}.");
+            Assert.Equal("Invalid request", response.Text);
         }
     }
 
@@ -379,9 +392,7 @@ public class CoreImageTests(SiteHost sites)
         Assert.Contains(NotSvgMessage, await response.ReadTextAsync());
     }
 
-    [Fact(
-        DisplayName = "prod ssr - SVG format validation: allows f=svg for an actual SVG data: URI in production build",
-        Skip = "GAP-CORE-5: fetch() of the engine cannot load a data: URL (it fails with \"Failed to fetch\"), so the endpoint answers 500 for the SVG data URI.")]
+    [Fact(DisplayName = "prod ssr - SVG format validation: allows f=svg for an actual SVG data: URI in production build")]
     public async Task Endpoint_AllowsSvgFormat_ForAnSvgDataUri()
     {
         var site = await sites.GetAsync(Fixture, WithDataUrls);

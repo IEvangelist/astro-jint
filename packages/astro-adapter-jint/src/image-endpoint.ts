@@ -17,8 +17,11 @@ import { host } from './host.js';
  */
 
 // Local paths are resolved against a fixed origin so the URL parser normalizes them the same way
-// `new URL('.' + src, outDir)` does in the Node endpoint.
-const LOCAL_ORIGIN = 'http://local.invalid/';
+// `new URL('.' + src, outDir)` does in the Node endpoint. The client output is a directory below that
+// origin's root, as it is below the root of a disk, so a path that climbs out of it ends outside of the
+// directory and is refused. Against the root itself the parser would drop the surplus `..` segments.
+const CLIENT_DIRECTORY = '/client/';
+const LOCAL_ORIGIN = `http://local.invalid${CLIENT_DIRECTORY}`;
 
 /**
  * A `Uint8Array` that is cheap to hash. Astro derives the `ETag` of a processed image from
@@ -73,9 +76,14 @@ async function loadLocalImage(src: string): Promise<LocalImageLoadResult> {
     return { kind: 'invalid-path' };
   }
 
+  // Outside of the client output or the output itself, which Node refuses too: it is no file to load.
+  if (pathname.length <= CLIENT_DIRECTORY.length || !pathname.startsWith(CLIENT_DIRECTORY)) {
+    return { kind: 'invalid-path' };
+  }
+
   // The host resolves the path the way it serves static files, base included, and refuses anything
   // that is hidden, outside `dist/client` or not an existing file.
-  const bytes = host?.readClientBytes?.(pathname);
+  const bytes = host?.readClientBytes?.(pathname.slice(CLIENT_DIRECTORY.length - 1));
   return bytes ? { kind: 'loaded', buffer: toImageBuffer(bytes) } : { kind: 'not-found' };
 }
 

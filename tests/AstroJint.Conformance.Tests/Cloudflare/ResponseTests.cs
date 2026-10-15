@@ -13,14 +13,14 @@ namespace AstroJint.Conformance.Cloudflare;
 /// <item>"rebuilds a response with immutable headers" becomes the endpoint <c>/immutable-redirect</c>, which sets a cookie
 /// and returns <c>Response.redirect()</c>, a response with immutable headers: the answer must be the redirect with the cookie.
 /// The assertion about <c>Cloudflare-CDN-Cache-Control</c> is left out, as it is a header of the Cloudflare platform. The
-/// test is skipped for a gap (GAP-CF-2).</item>
+/// adapter does what the Cloudflare one does: it reads the cookies with <c>app.setCookieHeaders()</c> and adds them to a copy of
+/// the response, which has headers it may change.</item>
 /// </list>
 /// </summary>
 [Trait("Upstream", "cloudflare/response.test.ts")]
 public class ResponseTests(SiteHost sites)
 {
-    [Fact(DisplayName = "rebuilds a response with immutable headers",
-        Skip = "GAP-CF-2: an endpoint that sets a cookie and returns Response.redirect() gets an empty 500; Astro's prepareResponse appends Set-Cookie to the immutable headers: TypeError: Failed to execute 'append' on 'Headers': Headers are immutable")]
+    [Fact(DisplayName = "rebuilds a response with immutable headers")]
     public async Task RebuildsAResponseWithImmutableHeaders()
     {
         var site = await sites.GetAsync(CfPages.Fixture);

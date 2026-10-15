@@ -62,6 +62,8 @@ public sealed class AstroOptions
     /// Decides which URLs JavaScript's <c>fetch</c> may request, for example the origin of a remote image that the
     /// <c>/_image</c> endpoint downloads. <see langword="null"/> (the default) rejects every request, so that code
     /// running in the engine cannot reach the network or the internal services of this machine by accident.
+    /// A <c>data:</c> URL never reaches the filter: the server entry of the adapter decodes it in the engine, where it
+    /// involves no network access.
     /// </summary>
     public Func<Uri, bool>? FetchUrlFilter { get; set; }
 

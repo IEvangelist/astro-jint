@@ -17,8 +17,7 @@ namespace AstroJint.Conformance.Cloudflare;
 /// of a host of its own, as upstream writes it between the build and the preview: the host indexes the static files when it
 /// starts, and a file that comes later is not served.</item>
 /// <item>"preserves cookies when finalizing immutable Hono responses" becomes the same for an Astro endpoint that
-/// returns <c>Response.redirect()</c>, a response with immutable headers, after it has set a cookie; Hono is not there.
-/// It is a gap (GAP-CF-2).</item>
+/// returns <c>Response.redirect()</c>, a response with immutable headers, after it has set a cookie; Hono is not there.</item>
 /// <item>"preserves cookies when rendering a custom error page" is a gap (GAP-CF-3).</item>
 /// <item>"uses the default server entrypoint for workerd prerendering" becomes that the page is prerendered by the build and
 /// that the host serves it.</item>
@@ -92,8 +91,7 @@ public partial class CustomEntryfileFetchStateTests(SiteHost sites)
         }
     }
 
-    [Fact(DisplayName = "preserves cookies when finalizing immutable Hono responses",
-        Skip = "GAP-CF-2: an endpoint that sets a cookie and returns Response.redirect() gets an empty 500; Astro's prepareResponse appends Set-Cookie to the immutable headers: TypeError: Failed to execute 'append' on 'Headers': Headers are immutable")]
+    [Fact(DisplayName = "preserves cookies when finalizing immutable Hono responses")]
     public async Task PreservesCookiesOfAnImmutableResponse()
     {
         var site = await sites.GetAsync(Fixture);
