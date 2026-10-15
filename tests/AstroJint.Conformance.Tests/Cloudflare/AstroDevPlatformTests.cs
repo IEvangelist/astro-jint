@@ -24,6 +24,17 @@ namespace AstroJint.Conformance.Cloudflare;
 /// as WebAssembly, which Jint does not have.</item>
 /// </list>
 /// <para>
+/// Two extra tests of the host (named "(host)") show what each gap needs, with a build variant made by an integration of
+/// <c>support/integrations.mjs</c> that answers one import of the build. <c>cf-prism-workerd</c> resolves
+/// <c>#prism-loadLanguages</c> to the loader for workers of <c>@astrojs/prism</c> and provides the virtual module that this
+/// loader imports; <c>/prism-test</c> then renders four highlighted blocks. <c>cf-shiki-js-engine</c> resolves
+/// <c>#shiki-engine</c> to the regular expression engine of Shiki written in JavaScript; <c>/code-test</c> then renders, but
+/// the first request allocates more than 384 MiB (it fails at 384 MiB and passes at 512 MiB), so this host raises
+/// <c>MemoryLimitBytes</c> from its default of 128 MiB. The <c>workerd</c> condition itself cannot be added to the build of this
+/// host: the build of the whole fixture fails, first on the virtual module of Prism, which only the Cloudflare adapter
+/// provides, and then on <c>shiki/onig.wasm</c>, which the <c>Code</c> page selects under that condition.
+/// </para>
+/// <para>
 /// Not applicable: the five tests "adds cf object", "adds cache mocking", "adds D1 mocking", "adds R2 mocking" and "adds
 /// KV mocking" ask the Cloudflare dev platform (the proxy of wrangler) for objects that the host does not have.
 /// </para>
@@ -77,5 +88,53 @@ public class AstroDevPlatformTests(SiteHost sites)
         Assert.True(response.StatusCode == HttpStatusCode.OK, CfContent.Describe(site, response, body));
         var unableToLoad = site.Logs.FirstOrDefault(entry => entry.Message.Contains("Unable to load the language"));
         Assert.True(unableToLoad is null, $"Should not see \"Unable to load the language\" message, but got: {unableToLoad?.Message}");
+    }
+
+    // What the Cloudflare adapter does for Prism, for this one import: @astrojs/prism has a loader for workers behind the
+    // condition "workerd", and the adapter provides the virtual module that this loader imports.
+    private static readonly object PrismForWorkers = new
+    {
+        integrations = new[] { new { conformanceIntegration = "cf-prism-workerd" } },
+    };
+
+    [Fact(DisplayName = "Prism component renders when the build has the loader of @astrojs/prism for workers (host)")]
+    public async Task PrismComponent_RendersWithTheLoaderForWorkers()
+    {
+        var site = await sites.GetAsync(CfContent.Fixture, PrismForWorkers);
+
+        using var response = await site.GetAsync("/prism-test");
+
+        var body = await response.ReadTextAsync();
+        Assert.True(response.StatusCode == HttpStatusCode.OK, CfContent.Describe(site, response, body));
+        var blocks = ConformanceSite.ParseHtml(body).QuerySelectorAll("pre");
+        Assert.Equal(4, blocks.Length);
+        Assert.All(blocks, block => Assert.True(block.QuerySelectorAll(".token").Length > 0, $"not highlighted: {block.OuterHtml}"));
+        var unableToLoad = site.Logs.FirstOrDefault(entry => entry.Message.Contains("Unable to load the language"));
+        Assert.True(unableToLoad is null, $"Should not see \"Unable to load the language\" message, but got: {unableToLoad?.Message}");
+    }
+
+    // The engine of Shiki written in JavaScript instead of the Oniguruma engine, which is WebAssembly.
+    private static readonly object ShikiWithoutWebAssembly = new
+    {
+        integrations = new[] { new { conformanceIntegration = "cf-shiki-js-engine" } },
+    };
+
+    [Fact(DisplayName = "Code component renders when the build has the JavaScript engine of Shiki (host)")]
+    public async Task CodeComponent_RendersWithTheJavaScriptEngine()
+    {
+        // The first request allocates between 384 and 512 MiB for the engine of Shiki, and the host stops a request at 128 MiB.
+        var site = await sites.GetAsync(
+            CfContent.Fixture,
+            ShikiWithoutWebAssembly,
+            options => options.MemoryLimitBytes = 512L * 1024 * 1024,
+            variant: "memory-limit-512mib");
+
+        using var response = await site.GetAsync("/code-test");
+
+        var body = await response.ReadTextAsync();
+        Assert.True(response.StatusCode == HttpStatusCode.OK, CfContent.Describe(site, response, body));
+        var document = ConformanceSite.ParseHtml(body);
+        Assert.Equal("Testing Code Component", document.QuerySelector("h1")?.TextContent);
+        Assert.True(document.QuerySelectorAll("pre.astro-code span").Length > 0, "Code block should be rendered and highlighted");
     }
 }
