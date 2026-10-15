@@ -99,7 +99,8 @@ public class FetchIndexTests(SiteHost sites)
     private static readonly (string Name, string Value) ForwardedHttps = ("x-forwarded-proto", "https");
     private static readonly (string Name, string Value) ForwardedExample = ("x-forwarded-host", "example.com");
 
-    private static readonly object Standard = new
+    // The variant of the other classes that use the fixture too (ActionOriginCheckTests).
+    internal static readonly object Standard = new
     {
         routes = new[]
         {
@@ -114,6 +115,7 @@ public class FetchIndexTests(SiteHost sites)
             Route("/files/[...path]", "file.ts"),
             Route("/session-probe", "session-probe.ts"),
             Route("/locals", "locals-from.astro"),
+            Route("/action-runs", "action-runs.ts"),
         },
         middleware = new[] { "user-middleware" },
         redirects = new Dictionary<string, string>

@@ -139,6 +139,14 @@ export default {
         return middleware(state, () => pages(state));
       }
 
+      case 'actions-before-middleware': {
+        // The order of the advanced-routing example: actions() answers an action request, everything else goes on.
+        const state = new FetchState(request);
+        const response = await actions(state);
+        if (response !== undefined) return response;
+        return middleware(state, () => pages(state));
+      }
+
       case 'response-of-pages': {
         const state = new FetchState(request);
         const before = state.response === undefined;

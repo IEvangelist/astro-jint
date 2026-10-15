@@ -1,0 +1,30 @@
+---
+import { ActionError, actions, isInputError } from 'astro:actions';
+
+// The page that the forms post to (/form-result?_action=<name>). It prints, as JSON, what Astro.getActionResult() gives back
+// for the action of the query: whether there is a result, its data, and its error.
+const name = Astro.url.searchParams.get('_action') ?? '';
+const action = name.split('.').reduce((node: any, key) => node?.[key], actions);
+const result = action ? Astro.getActionResult(action) : undefined;
+const data = result?.data as any;
+const error = result?.error as any;
+
+const view = {
+  hasResult: result !== undefined,
+  data: data instanceof Object ? null : (data ?? null),
+  hasData: data !== undefined,
+  channel: data?.channel ?? null,
+  date: data?.date instanceof Date ? data.date.toISOString() : null,
+  set: data?.set instanceof Set ? [...data.set] : null,
+  error: error
+    ? {
+        isActionError: error instanceof ActionError,
+        isInputError: isInputError(error),
+        code: error.code,
+        message: error.message,
+        hasIssues: Array.isArray(error.issues),
+      }
+    : null,
+};
+---
+<pre id="view">{JSON.stringify(view)}</pre>
