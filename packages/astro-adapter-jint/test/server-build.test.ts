@@ -31,6 +31,14 @@ describe('astro-adapter-jint server build', () => {
     assert.equal(vite.ssr.target, 'webworker');
   });
 
+  it('prefers the build that a package ships for workers, and keeps the conditions of a web runtime', async () => {
+    const { conditions } = (await viteConfigOf()).ssr.resolve;
+
+    assert.equal(conditions[0], 'worker');
+    assert.ok(conditions.includes('module') && conditions.includes('browser'));
+    assert.ok(!conditions.includes('node'));
+  });
+
   it('splits the server bundle into chunks, so the manifest and the assets of content collections both reach it', async () => {
     assert.equal(outputOf(await viteConfigOf()).codeSplitting, true);
   });

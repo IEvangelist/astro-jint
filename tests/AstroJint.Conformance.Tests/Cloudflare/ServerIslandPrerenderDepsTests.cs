@@ -16,8 +16,6 @@ namespace AstroJint.Conformance.Cloudflare;
 /// with the bundle that Jint runs.</item>
 /// <item>There is one more test, of the host: the island of <c>cf-pages</c> that the prerendered page asks for is
 /// rendered at run time, with the bundled dependency.</item>
-/// <item>The second test is a gap, GAP-CF-9: the Solid component of the island does not render, like the Solid page of
-/// <see cref="WithSolidJsTests"/>.</item>
 /// </list>
 /// </summary>
 [Trait("Upstream", "cloudflare/server-island-prerender-deps.test.ts")]
@@ -37,7 +35,7 @@ public partial class ServerIslandPrerenderDepsTests(SiteHost sites)
             $"Server island chunk should not keep bare devalue imports:\n{code}");
     }
 
-    [Fact(DisplayName = "renders framework components in prerender-only server islands", Skip = CfUi.SolidGap)]
+    [Fact(DisplayName = "renders framework components in prerender-only server islands")]
     public async Task ServerIsland_RendersFrameworkComponents()
     {
         var site = await sites.GetAsync(CfUi.Fixture);

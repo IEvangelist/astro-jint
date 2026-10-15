@@ -218,6 +218,20 @@ public class AstroModuleLoaderTests
         Assert.Equal(1, second.Invoke(secondExports.Get("next")).AsNumber());
     }
 
+    [Fact]
+    public async Task Functions_KeepTheirSourceText()
+    {
+        using var dist = DistFolder.Create()
+            .WithServerFile("entry.mjs", "export const add = function add(left, right) { return left + right; };");
+        var loader = new AstroModuleLoader(Path.Combine(dist.DistPath, "server", "entry.mjs"));
+
+        using var engine = CreateEngine(loader);
+        var exports = await engine.Modules.ImportAsync(loader.Entry);
+
+        var source = engine.Invoke("String", exports.Get("add")).AsString();
+        Assert.Contains("return left + right", source);
+    }
+
     [Theory]
     [InlineData(null, "./entry.mjs", "entry.mjs")]
     [InlineData("entry.mjs", "./chunks/a.mjs", "chunks/a.mjs")]

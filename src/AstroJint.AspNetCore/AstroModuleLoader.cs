@@ -19,6 +19,13 @@ internal sealed class AstroModuleLoader : IModuleLoader
 {
     private static readonly SearchValues<char> NotInAFileName = SearchValues.Create("\\:*?\"<>|\0");
 
+    // Svelte tells its components apart by Function.prototype.toString(), which Jint answers with a placeholder unless the
+    // parse keeps the source text. The text is the string that was read, so all engines share the one copy of a file.
+    private static readonly ModulePreparationOptions Preparation = new()
+    {
+        ParsingOptions = new ModuleParsingOptions { RetainFunctionSourceText = true },
+    };
+
     private readonly string _root;
     private readonly ConcurrentDictionary<string, Lazy<Prepared<Module>>> _modules = new(StringComparer.Ordinal);
 
@@ -56,7 +63,7 @@ internal sealed class AstroModuleLoader : IModuleLoader
         var key = ModuleFactory.LocationOf(resolved);
         var prepared = _modules
             .GetOrAdd(key, static (key, loader) => new Lazy<Prepared<Module>>(
-                () => Engine.PrepareModule(File.ReadAllText(loader.PathOf(key)), key),
+                () => Engine.PrepareModule(File.ReadAllText(loader.PathOf(key)), key, Preparation),
                 LazyThreadSafetyMode.ExecutionAndPublication), this)
             .Value;
 

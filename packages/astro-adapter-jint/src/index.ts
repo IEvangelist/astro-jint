@@ -97,7 +97,13 @@ export default function jint(options: JintAdapterOptions = {}): AstroIntegration
             vite: {
               define: { 'process.env.NODE_ENV': '"production"' },
               // Every dependency is bundled and none imports a node:* module, which is what Jint can evaluate.
-              ssr: { noExternal: true, target: 'webworker' },
+              ssr: {
+                noExternal: true,
+                target: 'webworker',
+                // The target only adds `browser` to the conditions. Packages that ship a build for workers expose it as
+                // `worker` (solid-js does, and its `browser` build cannot render to a string), so it is asked for first.
+                resolve: { conditions: ['worker', 'module', 'browser', 'development|production'] },
+              },
               // What is still imported from outside of the bundle is reported when the build is done.
               plugins: [reportUnresolvableImports((found) => unresolvableImports.push(...found))],
               environments: {
