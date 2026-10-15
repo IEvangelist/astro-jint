@@ -1,0 +1,5 @@
+---
+// Imports a component under the local name that names.astro uses for another one: two server islands with the same name.
+import Twin from './twin-b/Twin.astro';
+---
+<Twin server:defer which="b" />

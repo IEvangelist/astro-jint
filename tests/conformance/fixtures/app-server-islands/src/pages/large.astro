@@ -1,0 +1,11 @@
+---
+import Island from '../components/Island.astro';
+---
+<html>
+  <head>
+    <title>Server island with a large prop</title>
+  </head>
+  <body>
+    <Island server:defer data={'x'.repeat(2048)} />
+  </body>
+</html>

@@ -1,0 +1,11 @@
+---
+import Island from '../components/Island.astro';
+---
+<html>
+  <head>
+    <title>Server island with props</title>
+  </head>
+  <body>
+    <Island server:defer message="hello" userProp="visible" />
+  </body>
+</html>

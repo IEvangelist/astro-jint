@@ -1,0 +1,13 @@
+---
+import Island from '../components/Island.astro';
+---
+<html>
+  <head>
+    <title>Server island with a slot</title>
+  </head>
+  <body>
+    <Island server:defer>
+      <p slot="content">Slot content that should be encrypted</p>
+    </Island>
+  </body>
+</html>

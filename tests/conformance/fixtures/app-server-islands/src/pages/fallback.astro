@@ -1,0 +1,13 @@
+---
+import Island from '../components/Island.astro';
+---
+<html>
+  <head>
+    <title>Server island with a fallback</title>
+  </head>
+  <body>
+    <Island server:defer>
+      <Fragment slot="fallback">Loading...</Fragment>
+    </Island>
+  </body>
+</html>

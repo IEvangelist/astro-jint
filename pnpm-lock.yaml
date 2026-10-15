@@ -161,6 +161,15 @@ importers:
         specifier: workspace:*
         version: link:../../../../packages/astro-adapter-jint
 
+  tests/conformance/fixtures/app-server-islands:
+    dependencies:
+      astro:
+        specifier: ^7.3.6
+        version: 7.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1)
+      astro-adapter-jint:
+        specifier: workspace:*
+        version: link:../../../../packages/astro-adapter-jint
+
   tests/conformance/fixtures/bad-urls:
     dependencies:
       astro:

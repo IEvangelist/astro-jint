@@ -1,0 +1,12 @@
+---
+import Island from '../components/Island.astro';
+---
+<html>
+  <head>
+    <title>Two server islands with the same props</title>
+  </head>
+  <body>
+    <Island server:defer value="test" />
+    <Island server:defer value="test" />
+  </body>
+</html>

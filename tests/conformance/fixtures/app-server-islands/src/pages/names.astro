@@ -1,0 +1,17 @@
+---
+// Twin and AlsoTwin are the same component, TwinHolder has another one that is also called Twin where it imports it. Astro names a
+// server island after the local name of the import and keeps the names unique: Twin and Twin1.
+import Twin from '../components/twin-a/Twin.astro';
+import AlsoTwin from '../components/twin-a/Twin.astro';
+import TwinHolder from '../components/TwinHolder.astro';
+---
+<html>
+  <head>
+    <title>Server islands with the same name</title>
+  </head>
+  <body>
+    <Twin server:defer which="a" />
+    <AlsoTwin server:defer which="a again" />
+    <TwinHolder />
+  </body>
+</html>

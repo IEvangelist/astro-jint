@@ -1,0 +1,8 @@
+---
+// The island of the tests: it shows what it received (its props, which are what the page encrypted into the URL) and has a default
+// and a named slot.
+---
+<div id="island" data-props={JSON.stringify(Astro.props)}>
+  <slot />
+  <slot name="content" />
+</div>
