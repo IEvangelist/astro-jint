@@ -4,17 +4,18 @@ namespace AstroJint.Conformance.CoreBuild;
 /// Port of <c>packages/astro/test/asset-query-params.test.ts</c>: an adapter can declare <c>client.assetQueryParams</c>, and
 /// Astro then appends that query string (a deployment id such as <c>dpl=test-deploy-id</c>) to the URLs of the assets that a page
 /// links and to the imports between client chunks. Upstream renders pages with <c>app.render()</c> of a test adapter that sets
-/// the option; astro-adapter-jint has no such option, so the <c>cb-assets</c> fixture wraps the integration of the adapter
+/// the option; astro-adapter-jint has no such option, so the fixtures wrap the integration of the adapter
 /// (<c>support/cb/asset-query-params.mjs</c>, switched on by the <c>cb.assetQueryParams</c> flag of the variant) and the pages
 /// come from HTTP requests to the host.
 /// <para>
 /// Differences from upstream: the fixtures are the consolidated <c>cb-assets</c> (its on-demand pages under <c>/ssr/</c>
 /// replace the pages of <c>astro-assets</c>, <c>multiple-jsx-renderers</c>, <c>astro-assets-prefix</c> and
 /// <c>asset-query-params-chunks</c>; the island of the "Islands" test is the React counter, not a custom woof/meow JSX
-/// renderer). Every URL a page gets is also requested from the host (200, the content type of the file, the immutable cache
-/// header for <c>/_astro/</c>); the host maps a file by its path and ignores the query string. The two inter-chunk describes
-/// of the upstream file are identical (one of them sets <c>outDir</c>), so one test covers both. In the inter-chunk test every
-/// import found in a client script is also requested the way a browser resolves it.
+/// renderer) and <c>cb-fonts</c> (a local font family with two font files, where the <c>fonts</c> fixture asks Google for
+/// Roboto, so that the build needs no network). Every URL a page gets is also requested from the host (200, the content type
+/// of the file, the immutable cache header for <c>/_astro/</c>); the host maps a file by its path and ignores the query
+/// string. The two inter-chunk describes of the upstream file are identical (one of them sets <c>outDir</c>), so one test
+/// covers both. In the inter-chunk test every import found in a client script is also requested the way a browser resolves it.
 /// </para>
 /// </summary>
 [Trait("Upstream", "core/asset-query-params.test.ts")]
@@ -24,6 +25,12 @@ public class AssetQueryParamsTests(SiteHost sites)
     private const string Query = "?dpl=test-deploy-id";
 
     private static readonly object QueryParamsConfig = new { cb = new { assetQueryParams = new { dpl = "test-deploy-id" } } };
+
+    private static readonly object FontsQueryParamsConfig = new
+    {
+        output = "server",
+        cb = new { assetQueryParams = new { dpl = "test-deploy-id" } },
+    };
 
     private static readonly object QueryParamsWithMultiCdnConfig = new
     {
@@ -60,6 +67,24 @@ public class AssetQueryParamsTests(SiteHost sites)
 
         Assert.Contains("dpl=test-deploy-id", src);
         await PageAssets.AssertServedAsync(site, src);
+    }
+
+    [Fact(DisplayName = "Asset Query Parameters with Fonts: appends assetQueryParams to font requests")]
+    public async Task FontPreloadUrlsGetTheQuery()
+    {
+        var site = await sites.GetAsync("cb-fonts", FontsQueryParamsConfig);
+        var html = await PageAssets.PageAsync(site, "/preload");
+
+        var fontLinks = html.QuerySelectorAll("link[rel=preload][as=font]");
+
+        Assert.NotEmpty(fontLinks);
+        foreach (var link in fontLinks)
+        {
+            var href = link.GetAttribute("href")!;
+
+            Assert.Contains(Query, href);
+            await PageAssets.AssertServedAsync(site, href);
+        }
     }
 
     [Fact(DisplayName = "Asset Query Parameters with Islands: appends assetQueryParams to astro-island component and renderer URLs")]
