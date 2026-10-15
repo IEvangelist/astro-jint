@@ -9,9 +9,6 @@ namespace AstroJint.Conformance.CoreBuild;
 /// <c>dist/client/_astro</c> like upstream does. The first test also checks what its comment says, that one file holds the CSS
 /// of the shared layout and another one the CSS of <c>/special</c>: with the host the count of two files is right by
 /// coincidence.
-/// All three tests are gaps (GAP-BUILD-1): the adapter builds the server as one chunk, so the on-demand pages link one merged
-/// stylesheet (the shared CSS and the CSS of <c>/special</c>) instead of the shared stylesheet of the prerendered pages and one
-/// stylesheet that is unique to <c>/special</c>.
 /// </para>
 /// </summary>
 [Trait("Upstream", "core/css-server-output-dedup.test.ts")]
@@ -27,8 +24,7 @@ public class CssServerOutputDedupTests(SiteHost sites)
     private static async Task<string[]> StylesheetHrefsAsync(ConformanceSite site, string path) =>
         [.. (await site.GetHtmlAsync(path)).QuerySelectorAll("link[rel=stylesheet]").Select(link => link.GetAttribute("href")!)];
 
-    [Fact(DisplayName = "emits a single CSS file for a layout shared by prerendered and server-rendered pages",
-        Skip = "GAP-BUILD-1: the on-demand pages link one merged stylesheet, so the CSS of the shared layout is emitted twice")]
+    [Fact(DisplayName = "emits a single CSS file for a layout shared by prerendered and server-rendered pages")]
     public async Task EmitsASingleCssFileForASharedLayout()
     {
         var site = await sites.GetAsync(Fixture);
@@ -43,8 +39,7 @@ public class CssServerOutputDedupTests(SiteHost sites)
         Assert.NotEqual(layoutCss, specialCss);
     }
 
-    [Fact(DisplayName = "references the same shared CSS file from every page",
-        Skip = "GAP-BUILD-1: the on-demand pages link one merged stylesheet instead of the stylesheet of the prerendered pages")]
+    [Fact(DisplayName = "references the same shared CSS file from every page")]
     public async Task ReferencesTheSameSharedCssFileFromEveryPage()
     {
         var site = await sites.GetAsync(Fixture);
@@ -60,8 +55,7 @@ public class CssServerOutputDedupTests(SiteHost sites)
         Assert.Contains("font-family", await shared.ReadTextAsync());
     }
 
-    [Fact(DisplayName = "keeps CSS that is unique to a server-rendered page",
-        Skip = "GAP-BUILD-1: /special links one merged stylesheet, with no shared stylesheet and no stylesheet of its own")]
+    [Fact(DisplayName = "keeps CSS that is unique to a server-rendered page")]
     public async Task KeepsCssThatIsUniqueToAServerRenderedPage()
     {
         var site = await sites.GetAsync(Fixture);

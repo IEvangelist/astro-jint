@@ -12,8 +12,6 @@ namespace AstroJint.Conformance.CoreBuild;
 /// instead of being read from <c>dist</c>, so each of them also has to be served with status 200 and a CSS content type.
 /// The upstream "inconsequential" <c>site</c> values that bust the test runner's module cache are not needed.
 /// The two shared expectations of upstream (<c>commonExpectations</c>) are Theories over all six variants.
-/// The "auto in server output" test is a gap (GAP-BUILD-1): the adapter builds the server as one chunk, which merges the
-/// CSS of all on-demand pages into a single stylesheet that is linked, where Astro inlines the small page chunk.
 /// </para>
 /// </summary>
 [Trait("Upstream", "core/css-inline-stylesheets.test.ts")]
@@ -57,8 +55,7 @@ public class CssInlineStylesheetsTests(SiteHost sites)
         Assert.Single(html.QuerySelectorAll("style"));
     }
 
-    [Fact(DisplayName = "Setting inlineStylesheets to auto in server output: Renders some <style> and some <link> tags",
-        Skip = "GAP-BUILD-1: the server bundle is built as one chunk, so all the CSS of the on-demand pages is one stylesheet and nothing is inlined")]
+    [Fact(DisplayName = "Setting inlineStylesheets to auto in server output: Renders some <style> and some <link> tags")]
     public async Task Auto_Server_RendersOneStyleAndOneLink()
     {
         var site = await sites.GetAsync(Fixture, Variant("server", "auto"));

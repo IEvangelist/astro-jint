@@ -9,8 +9,7 @@ namespace AstroJint.Conformance.CoreBuild;
 /// <c>css-order</c> integration injects into every page is injected into it too (it does not change what the test looks for).
 /// The parity test builds both variants with <c>inlineStylesheets: 'never'</c>: upstream compares only the linked stylesheets
 /// and was authored when that was the default; with the <c>auto</c> default of Astro 7 these small pages link nothing, so the
-/// upstream comparison would be of two empty lists. It is a gap (GAP-BUILD-1): the server bundle is one chunk, and its CSS is
-/// one stylesheet for all the on-demand pages.
+/// upstream comparison would be of two empty lists.
 /// </para>
 /// </summary>
 [Trait("Upstream", "core/css-order.test.ts")]
@@ -20,8 +19,7 @@ public class CssOrderTests(SiteHost sites)
 
     private static readonly object Never = new { build = new { inlineStylesheets = "never" } };
 
-    [Fact(DisplayName = "SSG and SSR parity: is in the same order for output: server and static",
-        Skip = "GAP-BUILD-1: the server bundle is built as one chunk, so the CSS of all the on-demand pages is one stylesheet that every page includes")]
+    [Fact(DisplayName = "SSG and SSR parity: is in the same order for output: server and static")]
     public async Task SsgAndSsrParity_CssIsInTheSameOrder()
     {
         var staticSite = await sites.GetAsync(Fixture, Never);
