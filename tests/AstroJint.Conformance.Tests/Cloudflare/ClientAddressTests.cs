@@ -17,7 +17,8 @@ namespace AstroJint.Conformance.Cloudflare;
 /// are not at <c>/</c> as upstream. An address is then what the middleware makes of the header, and so the three tests that
 /// expect a status 500 for a header with a payload in it expect that the payload does not get through to the page: the
 /// middleware does not take what is not an IP address, the host answers 200 with the address of the connection, and the
-/// payload is nowhere in the response.
+/// payload is nowhere in the response. The last test, marked (host), is not upstream: it proves the other side of that
+/// decision, that a site which has not set the middleware up gets the address of the connection whatever the header says.
 /// </para>
 /// </summary>
 [Trait("Upstream", "cloudflare/client-address.test.ts")]
@@ -123,7 +124,7 @@ public class ClientAddressTests(SiteHost sites)
         Assert.Equal(Loopback, ConformanceSite.ParseHtml(html).QuerySelector("#address")!.TextContent);
     }
 
-    [Fact(DisplayName = "(host) ignores cf-connecting-ip when the application does not trust it")]
+    [Fact(DisplayName = "ignores cf-connecting-ip when the application does not trust it (host)")]
     public async Task IgnoresTheHeaderByDefault()
     {
         var site = await sites.GetAsync(Fixture);
