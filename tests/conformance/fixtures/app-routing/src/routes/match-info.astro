@@ -1,0 +1,10 @@
+---
+// Shows which route answered and what it got, for the tests of the router (routing-priority, router-match, trailing-slash...):
+// the pattern of the route, its params as JSON and the names of the keys (JSON leaves out a param that is undefined, the keys
+// do not), and the pathname that the route saw.
+const params = Astro.params;
+---
+<p id="pattern">{Astro.routePattern}</p>
+<p id="params">{JSON.stringify(params)}</p>
+<p id="keys">{Object.keys(params).join(',')}</p>
+<p id="pathname">{Astro.url.pathname}</p>
