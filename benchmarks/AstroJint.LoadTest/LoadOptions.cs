@@ -2,14 +2,16 @@ using System.Globalization;
 
 namespace AstroJint.LoadTest;
 
-internal sealed record LoadOptions(Uri Url, int Connections, TimeSpan Warmup, TimeSpan Duration, string Scenario, int? ServerProcessId)
+internal sealed record LoadOptions(Uri Url, int Connections, TimeSpan Warmup, TimeSpan Duration, string Scenario, int? ServerProcessId, string? GcStatsPath)
 {
     public const string Usage = """
-        Usage: AstroJint.LoadTest [--url <base address>] [--scenario <name>|all] [--connections <n>] [--duration <seconds>] [--warmup <seconds>] [--pid <server process id>]
+        Usage: AstroJint.LoadTest [--url <base address>] [--scenario <name>|all] [--connections <n>] [--duration <seconds>] [--warmup <seconds>] [--pid <server process id>] [--gc-stats <path>]
 
         Defaults: --url http://127.0.0.1:5199 --scenario static-page --connections 64 --duration 10 --warmup 3
         The server is started separately, so that its runtime settings are the ones that are measured.
         With --pid the report adds the processor time and the memory that the server used while it was measured.
+        With --gc-stats the report adds the garbage collections of the server while it was measured. The path (the sample host
+        has /api/host) answers JSON with a "gc" object of gen0, gen1, gen2, pauseMs and allocatedBytes.
         """;
 
     public static LoadOptions Parse(string[] args)
@@ -20,6 +22,7 @@ internal sealed record LoadOptions(Uri Url, int Connections, TimeSpan Warmup, Ti
         var duration = 10d;
         var scenario = "static-page";
         int? processId = null;
+        string? gcStatsPath = null;
 
         for (var i = 0; i < args.Length; i += 2)
         {
@@ -51,12 +54,17 @@ internal sealed record LoadOptions(Uri Url, int Connections, TimeSpan Warmup, Ti
                         ? pid
                         : throw new ArgumentException($"--pid must be a process id, not '{value}'.");
                     break;
+                case "--gc-stats":
+                    gcStatsPath = value.StartsWith('/')
+                        ? value
+                        : throw new ArgumentException($"--gc-stats must be a path that starts with '/', not '{value}'.");
+                    break;
                 default:
                     throw new ArgumentException($"Unknown option {name}.");
             }
         }
 
-        return new LoadOptions(url, connections, TimeSpan.FromSeconds(warmup), TimeSpan.FromSeconds(duration), scenario, processId);
+        return new LoadOptions(url, connections, TimeSpan.FromSeconds(warmup), TimeSpan.FromSeconds(duration), scenario, processId, gcStatsPath);
     }
 
     private static double ParseSeconds(string name, string value, double minimum) =>

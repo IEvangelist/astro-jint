@@ -38,6 +38,17 @@ app.MapGet("/api/host", () => Results.Json(new
 {
     framework = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,
     serverGarbageCollection = System.Runtime.GCSettings.IsServerGC,
+
+    // What the load test (benchmarks/AstroJint.LoadTest --gc-stats /api/host) reads before and after it measures.
+    gc = new
+    {
+        gen0 = GC.CollectionCount(0),
+        gen1 = GC.CollectionCount(1),
+        gen2 = GC.CollectionCount(2),
+        pauseMs = GC.GetTotalPauseDuration().TotalMilliseconds,
+        allocatedBytes = GC.GetTotalAllocatedBytes(),
+        heapBytes = GC.GetTotalMemory(forceFullCollection: false),
+    },
 }));
 
 app.MapGet("/sign-in/{name}", async (string name, HttpContext context) =>

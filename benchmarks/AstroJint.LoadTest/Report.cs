@@ -6,13 +6,19 @@ namespace AstroJint.LoadTest;
 /// <summary>The results as a Markdown table, so that a run can be pasted into a document as it is.</summary>
 internal static class Report
 {
-    public static string Header(bool withUsage)
+    public static string Header(bool withUsage, bool withGc)
     {
         var header = new StringBuilder("| Scenario | Connections | Requests/s | p50 | p90 | p99 | max | Errors | Bytes/response |");
         var rule = new StringBuilder("|---|---:|---:|---:|---:|---:|---:|---:|---:|");
         if (withUsage)
         {
             header.Append(" Server cores | Generator cores | Server memory |");
+            rule.Append("---:|---:|---:|");
+        }
+
+        if (withGc)
+        {
+            header.Append(" GC pause | GCs (gen0/1/2) | Allocated/request |");
             rule.Append("---:|---:|---:|");
         }
 
@@ -39,6 +45,13 @@ internal static class Report
             row.Append(' ').Append(usage.ServerCores.ToString("F1", culture))
                 .Append(" | ").Append(usage.GeneratorCores.ToString("F1", culture))
                 .Append(" | ").Append((usage.ServerWorkingSetBytes / (1024d * 1024)).ToString("F0", culture)).Append(" MB |");
+        }
+
+        if (result.Gc is { } gc)
+        {
+            row.Append(' ').Append(gc.PausePercent.ToString("F1", culture)).Append(" % | ")
+                .Append(gc.Gen0.ToString(culture)).Append('/').Append(gc.Gen1.ToString(culture)).Append('/').Append(gc.Gen2.ToString(culture))
+                .Append(" | ").Append(result.Requests == 0 ? "-" : (gc.AllocatedBytes / (double)result.Requests / 1024).ToString("F0", culture) + " KB").Append(" |");
         }
 
         return row.ToString();

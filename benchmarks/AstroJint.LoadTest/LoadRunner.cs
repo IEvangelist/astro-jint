@@ -1,10 +1,14 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Text.Json;
 
 namespace AstroJint.LoadTest;
 
 internal sealed record ServerUsage(double ServerCores, double GeneratorCores, long ServerWorkingSetBytes);
+
+/// <summary>What the garbage collector of the server did while the load was measured.</summary>
+internal sealed record GcUsage(double PausePercent, long Gen0, long Gen1, long Gen2, long AllocatedBytes);
 
 internal sealed record LoadResult(
     string Scenario,
@@ -15,7 +19,8 @@ internal sealed record LoadResult(
     IReadOnlyDictionary<int, long> Failures,
     double AverageBytes,
     LatencyHistogram Latency,
-    ServerUsage? Usage);
+    ServerUsage? Usage,
+    GcUsage? Gc);
 
 /// <summary>
 /// Opens the connections, sends the requests of a scenario for as long as the measurement lasts, and sums up what the
@@ -42,6 +47,7 @@ internal static class LoadRunner
         }
 
         var usage = MeasureUsageAsync(server, measureStart, end);
+        var gc = MeasureGcAsync(options, measureStart, end);
         await Task.WhenAll(tasks).ConfigureAwait(false);
 
         var latency = new LatencyHistogram();
@@ -69,8 +75,56 @@ internal static class LoadRunner
             failures,
             latency.Count == 0 ? 0 : (double)bytes / latency.Count,
             latency,
-            await usage.ConfigureAwait(false));
+            await usage.ConfigureAwait(false),
+            await gc.ConfigureAwait(false));
     }
+
+    private static async Task<GcUsage?> MeasureGcAsync(LoadOptions options, long measureStart, long end)
+    {
+        if (options.GcStatsPath is not { } path)
+        {
+            return null;
+        }
+
+        using var client = new HttpClient { BaseAddress = options.Url, Timeout = TimeSpan.FromSeconds(10) };
+
+        await DelayUntilAsync(measureStart).ConfigureAwait(false);
+        var before = await ReadGcStatsAsync(client, path).ConfigureAwait(false);
+        var wallStart = Stopwatch.GetTimestamp();
+
+        await DelayUntilAsync(end).ConfigureAwait(false);
+        var after = await ReadGcStatsAsync(client, path).ConfigureAwait(false);
+        var wallMilliseconds = Stopwatch.GetElapsedTime(wallStart).TotalMilliseconds;
+
+        return new GcUsage(
+            (after.PauseMilliseconds - before.PauseMilliseconds) / wallMilliseconds * 100,
+            after.Gen0 - before.Gen0,
+            after.Gen1 - before.Gen1,
+            after.Gen2 - before.Gen2,
+            after.AllocatedBytes - before.AllocatedBytes);
+    }
+
+    private static async Task<GcStats> ReadGcStatsAsync(HttpClient client, string path)
+    {
+        try
+        {
+            await using var body = await client.GetStreamAsync(path).ConfigureAwait(false);
+            using var document = await JsonDocument.ParseAsync(body).ConfigureAwait(false);
+            var gc = document.RootElement.GetProperty("gc");
+            return new GcStats(
+                gc.GetProperty("gen0").GetInt64(),
+                gc.GetProperty("gen1").GetInt64(),
+                gc.GetProperty("gen2").GetInt64(),
+                gc.GetProperty("pauseMs").GetDouble(),
+                gc.GetProperty("allocatedBytes").GetInt64());
+        }
+        catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException)
+        {
+            throw new InvalidOperationException($"{path} did not answer the \"gc\" object that --gc-stats reads: {ex.Message}", ex);
+        }
+    }
+
+    private readonly record struct GcStats(long Gen0, long Gen1, long Gen2, double PauseMilliseconds, long AllocatedBytes);
 
     private static async Task<IPEndPoint> ResolveAsync(Uri url)
     {

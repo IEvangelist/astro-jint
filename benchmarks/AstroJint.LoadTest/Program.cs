@@ -19,7 +19,7 @@ try
     using var server = options.ServerProcessId is { } pid ? Process.GetProcessById(pid) : null;
     var scenarios = options.Scenario == "all" ? Scenarios.Names : [options.Scenario];
 
-    Console.WriteLine(Report.Header(withUsage: server is not null));
+    Console.WriteLine(Report.Header(withUsage: server is not null, withGc: options.GcStatsPath is not null));
     foreach (var scenario in scenarios)
     {
         var requests = await Scenarios.BuildAsync(scenario, options.Url);
