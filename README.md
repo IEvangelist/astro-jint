@@ -20,7 +20,7 @@ build time: astro build (Node.js)                run time: ASP.NET Core (no Node
 dist/client/**         prerendered pages   --->  static files middleware: ETag, ranges, cache headers
                        and hashed assets
 dist/server/entry.mjs  Astro server        --->  pool of Jint engines, each one runs app.render(request)
-                       runtime and routes
+dist/server/chunks/    runtime and routes
 dist/astro-jint.json   manifest            --->  read at start-up: base, trailingSlash, static headers, routes
 ```
 
@@ -147,9 +147,9 @@ This is a prototype built on an interpreter. Know these before you plan on it:
 - **Jint is not V8.** A page whose JavaScript does a lot of work costs more here than in Node.js. Small pages render in
   about a millisecond, but measure your own.
 - **No Node.js APIs.** The server bundle must be self-contained: `node:*` built-ins and packages that stay external are
-  not available. `astro build` reports server code that imports something outside the bundle, and the engines then fail to
-  start, so every on-demand route answers 500 (prerendered pages keep working). Importing other files of the bundle by
-  relative path is fine.
+  not available. `astro build` warns about server code that imports something outside the bundle, and every on-demand
+  route that needs that file answers 500 (all of them, for a middleware). Prerendered pages keep working. Importing other
+  files of the bundle by relative path is fine.
 - **Bodies are buffered.** Requests and responses are not streamed, because Jint cannot. Large uploads and downloads
   belong in ASP.NET Core endpoints. A request body is read in full before `RequestTimeout` starts, so slow senders are
   held back by Kestrel's own limits (`MinRequestBodyDataRate`, `RequestHeadersTimeout`), which you should leave on.
