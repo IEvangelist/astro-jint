@@ -1,0 +1,14 @@
+---
+import { Code } from 'astro:components';
+
+export const prerender = true;
+---
+<html>
+	<head>
+		<title>Prerendered Code Component Test</title>
+	</head>
+	<body>
+		<h1>Testing a Prerendered Code Component</h1>
+		<Code code={`const hello = "world";`} lang="js" />
+	</body>
+</html>

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import type { AstroConfig, AstroIntegration, IntegrationResolvedRoute } from 'astro';
 import { passthroughImageService } from 'astro/config';
 import { MANIFEST_FILE_NAME, MANIFEST_VERSION, type AstroJintManifest, type AstroJintStaticHeaders } from './manifest.js';
+import { prismForWorkers } from './prism.js';
 import { collectStaticHeaders } from './static-headers.js';
 import {
   describeUnresolvableImports,
@@ -104,8 +105,12 @@ export default function jint(options: JintAdapterOptions = {}): AstroIntegration
                 // `worker` (solid-js does, and its `browser` build cannot render to a string), so it is asked for first.
                 resolve: { conditions: ['worker', 'module', 'browser', 'development|production'] },
               },
-              // What is still imported from outside of the bundle is reported when the build is done.
-              plugins: [reportUnresolvableImports((found) => unresolvableImports.push(...found))],
+              plugins: [
+                // What is still imported from outside of the bundle is reported when the build is done.
+                reportUnresolvableImports((found) => unresolvableImports.push(...found)),
+                // The default loader of `@astrojs/prism` needs `require()`, which neither the bundle nor Jint has.
+                prismForWorkers(),
+              ],
               environments: {
                 ssr: {
                   build: {

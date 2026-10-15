@@ -52,4 +52,10 @@ describe('astro-adapter-jint server build', () => {
   it('leaves the dev server alone', async () => {
     assert.equal(await viteConfigOf(undefined, 'dev'), undefined);
   });
+
+  it('has the loader of @astrojs/prism for workers, which the bundle needs for the Prism component', async () => {
+    const { plugins } = await viteConfigOf();
+
+    assert.ok(plugins.some((plugin: { name: string }) => plugin.name === 'astro-adapter-jint:prism'));
+  });
 });

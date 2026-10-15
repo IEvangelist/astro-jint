@@ -151,6 +151,11 @@ This is a prototype built on an interpreter. Know these before you plan on it:
   not available. `astro build` warns about server code that imports something outside the bundle, and every on-demand
   route that needs that file answers 500 (all of them, for a middleware). Prerendered pages keep working. Importing other
   files of the bundle by relative path is fine.
+- **`<Code />` does not render on demand.** Shiki, which the component uses, needs WebAssembly and Jint has none, so an
+  on-demand page with the component answers 500. In a prerendered page it works, because the build runs in Node.js.
+  `<Prism />` works in both (the adapter ships the loader of `@astrojs/prism` for workers). The cause and a workaround
+  that costs 400 MiB or more of memory for the first request are in the
+  [Cloudflare conformance notes](docs/conformance/cloudflare.md) (GAP-CF-11).
 - **Bodies are buffered.** Requests and responses are not streamed, because Jint cannot. Large uploads and downloads
   belong in ASP.NET Core endpoints. A request body is read in full before `RequestTimeout` starts, so slow senders are
   held back by Kestrel's own limits (`MinRequestBodyDataRate`, `RequestHeadersTimeout`), which you should leave on.

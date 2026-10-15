@@ -1,0 +1,15 @@
+---
+import { Prism } from '@astrojs/prism';
+
+export const prerender = true;
+---
+<html>
+<head>
+	<title>Prerendered Prism Component Test</title>
+</head>
+<body>
+<h1>Testing a Prerendered Prism Component</h1>
+<Prism code={`:root { color: red; }`} lang="css" />
+<Prism code={`const hello = "world";`} lang="js" />
+</body>
+</html>

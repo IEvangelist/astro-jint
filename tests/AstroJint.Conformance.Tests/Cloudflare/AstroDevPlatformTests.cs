@@ -8,31 +8,38 @@ namespace AstroJint.Conformance.Cloudflare;
 /// mock of <c>caches</c>, D1, R2 and KV bindings) and about the <c>Code</c> and <c>Prism</c> components of Astro, which the
 /// dev server must load although some of what they use is CommonJS. The three tests about the components ask the pages
 /// <c>/code-test</c> and <c>/prism-test</c> of the shared fixture <c>cf-content</c>, rendered on demand by the host from the
-/// server bundle, and the log of the host (<c>Logs</c>) replaces the log of the dev server. Neither component renders in the
-/// host, and the three tests are skipped for two gaps.
+/// server bundle, and the log of the host (<c>Logs</c>) replaces the log of the dev server. The two tests about <c>Prism</c>
+/// pass; the test about <c>Code</c> is skipped for a gap.
 /// <list type="bullet">
-/// <item>GAP-CF-10, <c>Prism</c>: the page answers an empty 500 and the console has <c>ReferenceError: Prism is not defined</c>
-/// in <c>loadLanguages</c> of <c>prismjs/components/index.js</c>, the loader that <c>@astrojs/prism</c> uses unless the build
-/// has the <c>workerd</c> condition (it then takes <c>loadLanguages-workerd.js</c> and the virtual module
-/// <c>virtual:astro-cloudflare:prism</c> that the Cloudflare adapter provides). The library sets the global <c>Prism</c> only
-/// if <c>typeof global !== 'undefined'</c> (Node's name for <c>globalThis</c>), which Jint does not have. Even with <c>global</c>
-/// defined (a build with <c>vite.define.global = "globalThis"</c>) the next error is <c>TypeError: Property 'resolve' of object
-/// is not a function</c>, the <c>require.resolve()</c> of the loader, which a bundle cannot have. The test that reads the log
-/// asks for the status first: without a page that renders, a log free of "Unable to load the language" would prove nothing.</item>
+/// <item><c>Prism</c> (GAP-CF-10, fixed by the adapter): <c>@astrojs/prism</c> loads the grammars through the import
+/// <c>#prism-loadLanguages</c>, which is <c>loadLanguages-default.js</c> unless the build has the <c>workerd</c> condition. That
+/// loader is <c>loadLanguages</c> of <c>prismjs/components/index.js</c>, which neither the bundle nor Jint can run: the library
+/// sets the global <c>Prism</c> only if <c>typeof global !== 'undefined'</c> (Node's name for <c>globalThis</c>), which Jint
+/// does not have, and the loader calls <c>require.resolve()</c>, which a bundle cannot have. Without the fix the page answers an
+/// empty 500 (<c>ReferenceError: Prism is not defined</c>), and a prerendered page with the component fails the build of the
+/// whole site. The adapter does in <c>src/prism.ts</c> what <c>@astrojs/cloudflare</c> does in <c>vite-plugin-prism.ts</c>: the
+/// plugin <c>astro-adapter-jint:prism</c> resolves <c>#prism-loadLanguages</c> to <c>loadLanguages-workerd.js</c> and provides
+/// the virtual module <c>virtual:astro-cloudflare:prism</c> that this loader imports, with one dynamic import for each grammar of
+/// prismjs. It is a plugin for these two imports and not the condition itself, which also selects the WebAssembly build of Shiki
+/// (<c>shiki/onig.wasm</c>) that cannot be bundled outside of workerd. The test that reads the log asks for the status first:
+/// without a page that renders, a log free of "Unable to load the language" would prove nothing.</item>
 /// <item>GAP-CF-11, <c>Code</c>: the page answers an empty 500 and the console has <c>ReferenceError: WebAssembly is not
 /// defined</c> in <c>getWasmInstance</c>. Shiki, which the component uses, loads its regular expression engine (Oniguruma)
-/// as WebAssembly, which Jint does not have.</item>
+/// as WebAssembly, which Jint does not have. A prerendered page with the component is not affected: the build runs in
+/// Node.js, which has WebAssembly.</item>
 /// </list>
 /// <para>
-/// Two extra tests of the host (named "(host)") show what each gap needs, with a build variant made by an integration of
-/// <c>support/integrations.mjs</c> that answers one import of the build. <c>cf-prism-workerd</c> resolves
-/// <c>#prism-loadLanguages</c> to the loader for workers of <c>@astrojs/prism</c> and provides the virtual module that this
-/// loader imports; <c>/prism-test</c> then renders four highlighted blocks. <c>cf-shiki-js-engine</c> resolves
+/// Four extra tests of the host (named "(host)") go with them. Two are about <c>Prism</c>: the page <c>/prism-test</c> has
+/// four blocks, for css, js, ts and rust, that are highlighted, and the page <c>/prism-prerendered/</c>, which has
+/// <c>prerender = true</c>, is a file of the build with highlighted blocks (this page also guards the build of the whole
+/// fixture, which fails without the plugin of the adapter). The third, about <c>Code</c>, checks that the page
+/// <c>/code-prerendered/</c> is a file of the build with a highlighted block, so the gap is for on-demand pages only. The
+/// fourth shows what the gap of <c>Code</c> needs, with a build
+/// variant made by the integration <c>cf-shiki-js-engine</c> of <c>support/integrations.mjs</c>, which resolves
 /// <c>#shiki-engine</c> to the regular expression engine of Shiki written in JavaScript; <c>/code-test</c> then renders, but
 /// the first request allocates more than 384 MiB (it fails at 384 MiB and passes at 512 MiB), so this host raises
 /// <c>MemoryLimitBytes</c> from its default of 128 MiB. The <c>workerd</c> condition itself cannot be added to the build of this
-/// host: the build of the whole fixture fails, first on the virtual module of Prism, which only the Cloudflare adapter
-/// provides, and then on <c>shiki/onig.wasm</c>, which the <c>Code</c> page selects under that condition.
+/// host: the build of the whole fixture fails on <c>shiki/onig.wasm</c>, which the <c>Code</c> page selects under that condition.
 /// </para>
 /// <para>
 /// Not applicable: the five tests "adds cf object", "adds cache mocking", "adds D1 mocking", "adds R2 mocking" and "adds
@@ -42,9 +49,6 @@ namespace AstroJint.Conformance.Cloudflare;
 [Trait("Upstream", "cloudflare/astro-dev-platform.test.ts")]
 public class AstroDevPlatformTests(SiteHost sites)
 {
-    private const string PrismGap =
-        "GAP-CF-10: GET /prism-test answers an empty 500, and the console has ReferenceError: Prism is not defined (loadLanguages of prismjs/components/index.js): prismjs sets the global Prism only when typeof global !== 'undefined', and Jint has no global; with global defined the next error is TypeError: Property 'resolve' of object is not a function (require.resolve in the bundle)";
-
     private const string CodeGap =
         "GAP-CF-11: GET /code-test answers an empty 500, and the console has ReferenceError: WebAssembly is not defined (getWasmInstance of shiki/wasm): Jint has no WebAssembly, which the Oniguruma engine of Shiki needs";
 
@@ -62,7 +66,7 @@ public class AstroDevPlatformTests(SiteHost sites)
         Assert.True(document.QuerySelectorAll("pre").Length > 0, "Code block should be rendered");
     }
 
-    [Fact(DisplayName = "Prism component works in dev mode (no CommonJS module errors)", Skip = PrismGap)]
+    [Fact(DisplayName = "Prism component works in dev mode (no CommonJS module errors)")]
     public async Task PrismComponent_Works()
     {
         var site = await sites.GetAsync(CfContent.Fixture);
@@ -77,7 +81,7 @@ public class AstroDevPlatformTests(SiteHost sites)
         Assert.Equal(4, document.QuerySelectorAll("pre").Length);
     }
 
-    [Fact(DisplayName = "Prism component loads languages correctly in dev mode", Skip = PrismGap)]
+    [Fact(DisplayName = "Prism component loads languages correctly in dev mode")]
     public async Task PrismComponent_LoadsLanguages()
     {
         var site = await sites.GetAsync(CfContent.Fixture);
@@ -90,17 +94,10 @@ public class AstroDevPlatformTests(SiteHost sites)
         Assert.True(unableToLoad is null, $"Should not see \"Unable to load the language\" message, but got: {unableToLoad?.Message}");
     }
 
-    // What the Cloudflare adapter does for Prism, for this one import: @astrojs/prism has a loader for workers behind the
-    // condition "workerd", and the adapter provides the virtual module that this loader imports.
-    private static readonly object PrismForWorkers = new
+    [Fact(DisplayName = "Prism component highlights the blocks of each language (host)")]
+    public async Task PrismComponent_HighlightsEachLanguage()
     {
-        integrations = new[] { new { conformanceIntegration = "cf-prism-workerd" } },
-    };
-
-    [Fact(DisplayName = "Prism component renders when the build has the loader of @astrojs/prism for workers (host)")]
-    public async Task PrismComponent_RendersWithTheLoaderForWorkers()
-    {
-        var site = await sites.GetAsync(CfContent.Fixture, PrismForWorkers);
+        var site = await sites.GetAsync(CfContent.Fixture);
 
         using var response = await site.GetAsync("/prism-test");
 
@@ -109,8 +106,32 @@ public class AstroDevPlatformTests(SiteHost sites)
         var blocks = ConformanceSite.ParseHtml(body).QuerySelectorAll("pre");
         Assert.Equal(4, blocks.Length);
         Assert.All(blocks, block => Assert.True(block.QuerySelectorAll(".token").Length > 0, $"not highlighted: {block.OuterHtml}"));
-        var unableToLoad = site.Logs.FirstOrDefault(entry => entry.Message.Contains("Unable to load the language"));
-        Assert.True(unableToLoad is null, $"Should not see \"Unable to load the language\" message, but got: {unableToLoad?.Message}");
+    }
+
+    [Fact(DisplayName = "Prism component of a prerendered page is highlighted by the build (host)")]
+    public async Task PrismComponent_IsHighlightedWhenPrerendered()
+    {
+        var site = await sites.GetAsync(CfContent.Fixture);
+
+        // The page is a file of the build, which the host serves without Jint.
+        Assert.True(site.PathExists("client/prism-prerendered/index.html"), "the build wrote no prerendered page for the Prism component");
+        var document = await site.GetHtmlAsync("/prism-prerendered/");
+        Assert.Equal("Testing a Prerendered Prism Component", document.QuerySelector("h1")?.TextContent);
+        var blocks = document.QuerySelectorAll("pre");
+        Assert.Equal(2, blocks.Length);
+        Assert.All(blocks, block => Assert.True(block.QuerySelectorAll(".token").Length > 0, $"not highlighted: {block.OuterHtml}"));
+    }
+
+    [Fact(DisplayName = "Code component of a prerendered page is highlighted by the build (host)")]
+    public async Task CodeComponent_IsHighlightedWhenPrerendered()
+    {
+        var site = await sites.GetAsync(CfContent.Fixture);
+
+        // The build prerenders in Node.js, which has the WebAssembly that Shiki needs, and the host serves the file without Jint.
+        Assert.True(site.PathExists("client/code-prerendered/index.html"), "the build wrote no prerendered page for the Code component");
+        var document = await site.GetHtmlAsync("/code-prerendered/");
+        Assert.Equal("Testing a Prerendered Code Component", document.QuerySelector("h1")?.TextContent);
+        Assert.True(document.QuerySelectorAll("pre.astro-code span").Length > 0, "Code block should be rendered and highlighted");
     }
 
     // The engine of Shiki written in JavaScript instead of the Oniguruma engine, which is WebAssembly.
