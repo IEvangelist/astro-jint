@@ -1,0 +1,71 @@
+---
+// The page of app/astro-attrs.test.ts: each element gets its attribute from an expression, which the compiler turns into a call
+// of addAttribute(value, name). The values are constants of the frontmatter, so that the compiler cannot fold them into the markup.
+const yes = true;
+const no = false;
+const nothing = undefined;
+const empty = '';
+const auto = 'auto';
+const untilFound = 'until-found';
+const fileName = 'my-document.pdf';
+const text = 'foo';
+const one = 1;
+const zero = 0;
+const missing = null;
+const url = 'https://example.com/api/og?title=hello&description=somedescription';
+const command = 'cmd: echo "foo" && echo "bar" > out.txt';
+---
+<a id="download-true" href="file.pdf" download={yes} />
+<a id="download-false" href="file.pdf" download={no} />
+<a id="download-undefined" href="file.pdf" download={nothing} />
+<a id="download-string-empty" href="file.pdf" download={empty}  />
+<a id="download-string" href="file.pdf" download={fileName} />
+
+<dialog id="popover-auto" popover={auto} />
+<dialog id="popover-true" popover={yes} />
+<dialog id="popover-false" popover={no} />
+<dialog id="popover-string-empty" popover={empty} />
+
+<custom-el id="popover-custom-el-true" popover={yes} />
+<custom-el id="popover-custom-el-false" popover={no} />
+<custom-el id="popover-custom-el-auto" popover={auto} />
+
+<div id="hidden-until-found" hidden={untilFound} />
+<div id="hidden-true" hidden={yes} />
+<div id="hidden-false" hidden={no} />
+<div id="hidden-string-empty" hidden={empty} />
+
+<span id="boolean-attr-true" allowfullscreen={yes} />
+<span id="boolean-attr-false" allowfullscreen={no} />
+<span id="boolean-attr-string-truthy" allowfullscreen={text} />
+<span id="boolean-attr-string-falsy" allowfullscreen={empty} />
+<span id="boolean-attr-number-truthy" allowfullscreen={one} />
+<span id="boolean-attr-number-falsy" allowfullscreen={zero} />
+
+<span id="data-attr-true" data-foobar={yes} />
+<span id="data-attr-false" data-foobar={no} />
+<span id="data-attr-string-truthy" data-foobar={text} />
+<span id="data-attr-string-falsy" data-foobar={empty} />
+<span id="data-attr-number-truthy" data-foobar={one} />
+<span id="data-attr-number-falsy" data-foobar={zero} />
+
+<span id="normal-attr-true" foobar={yes} />
+<span id="normal-attr-false" foobar={no} />
+<span id="normal-attr-string-truthy" foobar={text} />
+<span id="normal-attr-string-falsy" foobar={empty} />
+<span id="normal-attr-number-truthy" foobar={one} />
+<span id="normal-attr-number-falsy" foobar={zero} />
+
+<span id="null" attr={missing} />
+<span id="undefined" attr={nothing} />
+
+<span id="url" attr={url}/>
+<span id="code" attr={command} />
+
+<!--
+  Other attributes should be treated as string enums
+  These should always render <span draggable="true" /> or <span draggable="false" />
+-->
+<span id='html-enum' draggable='true' />
+<span id='html-enum-true' draggable={yes} />
+<span id='html-enum-false' draggable={no} />

@@ -1,0 +1,17 @@
+---
+import { createRenderInstruction } from 'astro/runtime/server/render/instruction.js';
+
+// The page of app/inert-script-dedup.test.ts: the instruction of a client directive, once in a <template> (the compiler brackets
+// its content with templateEnter() and templateExit()) and once outside of it.
+const instruction = createRenderInstruction({
+  type: 'directive',
+  hydration: {
+    directive: 'load',
+    value: '',
+    componentUrl: '',
+    componentExport: { value: '' },
+  },
+});
+---
+<template id="inert-hydration-template">{instruction}</template>
+<div id="hydration-runtime">{instruction}</div>

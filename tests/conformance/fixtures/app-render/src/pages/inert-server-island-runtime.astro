@@ -1,0 +1,9 @@
+---
+import { createRenderInstruction } from 'astro/runtime/server/render/instruction.js';
+
+// The page of app/inert-script-dedup.test.ts: the instruction of the server island runtime, once in a <template> and once
+// outside of it.
+const instruction = createRenderInstruction({ type: 'server-island-runtime' });
+---
+<template id="inert-server-island-template">{instruction}</template>
+<div id="server-island-runtime">{instruction}</div>

@@ -1,0 +1,11 @@
+---
+// The values that app/url-attribute-xss.test.ts passes to addAttribute(value, 'href'), as the href of links.
+const maliciousUrl = 'https://evil.com/?a=1&b=2"+onmouseover="alert(1)';
+const url = 'https://example.com/?a=1&b=2&c=3';
+const nothing = null;
+const missing = undefined;
+---
+<a id="malicious" href={maliciousUrl}>malicious</a>
+<a id="ampersands" href={url}>ampersands</a>
+<a id="null" href={nothing}>null</a>
+<a id="undefined" href={missing}>undefined</a>

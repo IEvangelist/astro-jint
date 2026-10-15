@@ -87,10 +87,6 @@ public class FetchIndexTests(SiteHost sites)
         "GAP-UNITS-1: Kestrel decodes one percent-encoding level into Request.Path and the host does not re-encode it, so Astro sees the " +
         "payload encoded eleven times as ten levels, decodes it to /api/admin and the function does not answer 400";
 
-    private const string ForwardedForGap =
-        "GAP-UNITS-6: the host always passes the address of the connection as the client address, so X-Forwarded-For is never read, " +
-        "where Astro on Node reads it when the forwarded host is one of the allowed domains";
-
     // The payload that upstream sends, encoded eleven times, and the same encoded twelve times (Astro sees one level less).
     private const string EncodedElevenTimes = "/api/%2525252525252525252561dmin";
     private const string EncodedTwelveTimes = "/api/%252525252525252525252561dmin";
@@ -757,7 +753,7 @@ public class FetchIndexTests(SiteHost sites)
         Assert.Equal("localhost", state.GetProperty("hostname").GetString());
     }
 
-    [Fact(DisplayName = "resolves clientAddress from X-Forwarded-For when host is trusted", Skip = ForwardedForGap)]
+    [Fact(DisplayName = "resolves clientAddress from X-Forwarded-For when host is trusted", Skip = AppForwarded.ForwardedForGap)]
     public async Task Forwarded_ResolvesTheClientAddressFromForwardedFor_WhenTheHostIsTrusted()
     {
         var state = await StateAsync(ForwardedExampleHost, "/", LocalHost, ForwardedExample, ("x-forwarded-for", "203.0.113.50, 70.41.3.18"));
