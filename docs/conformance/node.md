@@ -62,9 +62,10 @@ Upstream: `packages/integrations/node/test` (withastro/astro 7.3.8, commit 71e2b
 - **Host behaviours added to match what the Node adapter shows.** A backslash that the client wrote as one is folded into a slash before Astro sees the path
   (`/\example.com/press` is `//example.com/press`, as behind the Node adapter); a malformed `If-Match` on a static file fails with 412, where ASP.NET Core would
   ignore it; `Cache-Control: public, max-age=31536000, immutable` is only sent with 200, 206 and 304 answers, so a failed precondition never carries it.
-- **Request URL.** Astro builds the URL from the `Host` and `X-Forwarded-*` headers the client sent, as the Node adapter does. A `Host` that
-  `security.allowedDomains` does not list falls back to `localhost` and the port of the server, which is why the absolute `Location` of `Response.redirect` is
-  compared with `http://localhost:{port}/destination` (`UrlTests`, `ApiRouteTests`).
+- **Request URL.** The fixtures of `UrlTests` and `ApiRouteTests` set `security.allowedDomains`, so Astro builds the URL from the `Host` and `X-Forwarded-Proto`
+  headers the client sent only when the list names them, as the Node adapter does. A `Host` that the list does not name falls back to `localhost` and the port of
+  the server, which is why the absolute `Location` of `Response.redirect` is compared with `http://localhost:{port}/destination`. Without `allowedDomains` the host
+  keeps the `Host` that ASP.NET Core resolved ([GAP-UNITS-7](core-units.md#gaps)).
 
 ## Gaps
 
