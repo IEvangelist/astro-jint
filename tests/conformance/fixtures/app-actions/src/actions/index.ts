@@ -3,10 +3,13 @@ import { z } from 'astro/zod';
 
 // The actions of the Actions unit tests of Astro (packages/astro/test/units/actions). The first group is the table of
 // actions of actions-app.test.ts, the second the data and errors of serialize.test.ts, the third (`forms`) the schemas of
-// form-data-to-object.test.ts.
+// form-data-to-object.test.ts, the last those of render-context.test.ts (render/render-context.test.ts).
 
 // The count of increment calls, for the test that checks that `increment.orThrow` does not run the action.
 let calls = 0;
+
+// The count of runs of `countedForm`, for the tests that check whether the render of a page ran the form action it was posted.
+let formCalls = 0;
 
 const passwordSchema = z
   .string()
@@ -300,4 +303,29 @@ export const server = {
     discriminatedUnion: formAction(z.object({ name: z.string(), contact })),
     passthrough: formAction(z.object({ expected: z.number() }).passthrough()),
   },
+
+  // render-context.test.ts: the form action that counts its runs (the `testAction` of the two skipMiddleware tests) and the action
+  // that reads the counter, and the two actions that use `context.logger`: one that tells what it is made of, one that writes.
+  countedForm: defineAction({
+    accept: 'form',
+    handler: async () => {
+      formCalls += 1;
+      return 'action result';
+    },
+  }),
+  formCallCount: defineAction({
+    handler: async () => ({ calls: formCalls }),
+  }),
+  contextLoggerMethods: defineAction({
+    handler: async (_input, context) =>
+      [typeof context.logger, typeof context.logger.info, typeof context.logger.warn, typeof context.logger.error].join('/'),
+  }),
+  contextLoggerWrites: defineAction({
+    handler: async (_input, context) => {
+      context.logger.info('info message');
+      context.logger.warn('warn message');
+      context.logger.error('error message');
+      return 'written';
+    },
+  }),
 };

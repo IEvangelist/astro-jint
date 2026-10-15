@@ -6,6 +6,7 @@ import { cases as htmlPrimitives } from '../../lib/probes/html-primitives';
 import { cases as hydration } from '../../lib/probes/hydration';
 import { cases as inertScriptDedup } from '../../lib/probes/inert-script-dedup';
 import { cases as jsxCustomElements } from '../../lib/probes/jsx-custom-elements';
+import { cases as logger } from '../../lib/probes/logger';
 import { cases as rendering } from '../../lib/probes/rendering';
 import { cases as ssrElements } from '../../lib/probes/ssr-elements';
 import { cases as tags } from '../../lib/probes/tags';
@@ -23,6 +24,7 @@ const probes: Record<string, Record<string, () => unknown>> = {
   hydration,
   'inert-script-dedup': inertScriptDedup,
   'jsx-custom-elements': jsxCustomElements,
+  logger,
   rendering,
   'ssr-elements': ssrElements,
   tags,

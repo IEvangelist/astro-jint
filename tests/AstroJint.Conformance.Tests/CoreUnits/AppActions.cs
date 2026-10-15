@@ -67,10 +67,11 @@ internal static class AppActions
         sites.GetAsync(Fixture, new { security = new { checkOrigin = false, actionBodySizeLimit = 100 } });
 
     // The same build as the default site, on a host that has a single engine: the module state of the fixture (the counter of
-    // the increment action) is then the same for every request.
-    public static Task<ConformanceSite> GetSingleEngineSiteAsync(this SiteHost sites) =>
+    // the increment action) is then the same for every request. A test that counts the runs of an action of its own names a
+    // variant, which gives it a host that no other test shares.
+    public static Task<ConformanceSite> GetSingleEngineSiteAsync(this SiteHost sites, string variant = "single-engine") =>
         sites.GetAsync(
-            Fixture, new { security = new { checkOrigin = false } }, variant: "single-engine", configure: options => options.PoolSize = 1);
+            Fixture, new { security = new { checkOrigin = false } }, variant: variant, configure: options => options.PoolSize = 1);
 
     // The same build as the default site, on a host whose locals carry an action result that the caller of App.render() made, as
     // a middleware of a form post does. The request header x-action-result picks the result: error-422 (an UNPROCESSABLE_CONTENT

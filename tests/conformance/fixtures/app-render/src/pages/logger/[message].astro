@@ -1,0 +1,8 @@
+---
+// logger.test.ts and render-context.test.ts: a page that writes the last segment of its URL as one line through Astro.logger, at
+// the level of the query (?level=warn or ?level=error, info by default), so that each test finds a line of its own in the log of
+// the host.
+const level = (Astro.url.searchParams.get('level') ?? 'info') as 'info' | 'warn' | 'error';
+Astro.logger[level](Astro.params.message ?? '');
+---
+<html><head></head><body><p>OK</p></body></html>

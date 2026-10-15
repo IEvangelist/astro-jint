@@ -1,0 +1,16 @@
+---
+// context-helpers.test.ts: what the getters Astro.session and Astro.csp give on a page, as JSON. A getter that gives nothing is
+// 'undefined'; the csp object is described by the type of each of its insert* methods.
+const session: unknown = Astro.session;
+const csp = Astro.csp as Record<string, unknown> | undefined;
+const view = {
+  session: session === undefined ? 'undefined' : typeof session,
+  csp: csp === undefined ? 'undefined' : typeof csp,
+  insertScriptHash: typeof csp?.insertScriptHash,
+  insertStyleHash: typeof csp?.insertStyleHash,
+  insertScriptResource: typeof csp?.insertScriptResource,
+  insertStyleResource: typeof csp?.insertStyleResource,
+  insertDirective: typeof csp?.insertDirective,
+};
+---
+<pre id="view">{JSON.stringify(view)}</pre>
