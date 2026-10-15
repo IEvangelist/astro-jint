@@ -37,23 +37,25 @@ dotnet run --project spikes/JintSpike -- --probe            # JS compatibility p
 
 Chunked output (e1) works too: relative dynamic `import("./chunks/...")` resolves under
 `UseModules(serverDir)` with no extra shims, because e1 already has no `node:*` imports.
-The single-file bundle is still the recommended output (fewer files, one parse).
+When this spike was written, the single-file bundle was the recommended output (fewer
+files, one parse); the first update below says why that changed.
 
 > **Update (chunked output is the default now).** The adapter turns code splitting on for
 > the server build (see S1), because the single file broke content collections. Each file
 > is still parsed once for all engines, and a page chunk is parsed on its first request
 > instead of at engine creation.
 
-> **Update.** The adapter cannot guarantee a single file: a project that uses server
-> islands (or any dynamic `import()` in on-demand code) still gets `server/entry.mjs` plus
-> `server/chunks/*.mjs`. The host therefore no longer relies on `UseModules(<dir>)`. It
-> loads the server bundle through `AstroModuleLoader`, which parses each file once for all
-> engines in the pool, resolves only relative imports inside the server folder, and turns a
-> refused import into a catchable rejection of `import()` (a static import that is refused
-> fails engine creation with a message that names the module and the reason, without host
-> paths). Jint does not turn a `ModuleResolutionException` thrown from `Resolve` into a
-> rejection when the `import()` runs on a script's own stack, so refusals are carried by a
-> sentinel `ResolvedSpecifier` and thrown as a `JavaScriptException` from `LoadModule`.
+> **Update.** The server build is `server/entry.mjs` plus `server/chunks/*.mjs` (before
+> code splitting was forced, a project without server islands or other dynamic `import()`
+> in on-demand code still got one file). The host therefore no longer relies on
+> `UseModules(<dir>)`. It loads the server bundle through `AstroModuleLoader`, which parses
+> each file once for all engines in the pool, resolves only relative imports inside the
+> server folder, and turns a refused import into a catchable rejection of `import()` (a
+> static import that is refused fails engine creation with a message that names the module
+> and the reason, without host paths). Jint does not turn a `ModuleResolutionException`
+> thrown from `Resolve` into a rejection when the `import()` runs on a script's own stack,
+> so refusals are carried by a sentinel `ResolvedSpecifier` and thrown as a
+> `JavaScriptException` from `LoadModule`.
 
 ## Timing baseline (cold process, includes JIT warm-up; S3 measures properly)
 
