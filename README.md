@@ -250,8 +250,11 @@ dotnet test --project tests/AstroJint.Conformance.Tests/AstroJint.Conformance.Te
 The tests of Astro's official adapters (Node.js, Netlify, Vercel and Cloudflare) and the adapter-facing tests of Astro
 core are ported to end-to-end tests: each one builds a real Astro fixture, starts a real Kestrel host and talks to it over
 HTTP. Tests that exercise a platform service (Netlify's image CDN, Vercel's ISR, Cloudflare bindings and the like) cannot
-apply to this host. The matrix in [docs/conformance.md](docs/conformance.md) lists every upstream test file with what is
-ported, adapted, a known gap or not applicable, and why.
+apply to this host. Of the 2463 upstream tests in scope, 527 are ported as they are, 1360 are adapted, 46 are known gaps
+(skipped, each with an id) and 530 do not apply. The suite has 2244 tests: 2196 pass, 48 are skipped for the known gaps
+and none fails. [docs/conformance.md](docs/conformance.md) has the numbers by area, the places where the behavior differs
+and the open gaps; the matrices in [docs/conformance/](docs/conformance) list every upstream test file in scope with
+what is ported, adapted, a known gap or not applicable, and why.
 
 ## Ideas
 
