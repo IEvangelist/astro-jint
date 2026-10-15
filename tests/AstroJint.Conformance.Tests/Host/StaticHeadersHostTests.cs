@@ -39,6 +39,20 @@ public partial class StaticHeadersHostTests(SiteHost sites)
     }
 
     [Fact]
+    public async Task PrerenderedErrorPage_CarriesItsPolicyInTheHeader()
+    {
+        var site = await sites.GetAsync(Fixture);
+
+        using var response = await site.GetAsync("/no/such/page");
+        var document = await response.ReadHtmlAsync();
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("Not found", document.QuerySelector("h1")?.TextContent);
+        Assert.Contains("script-src", Assert.Single(response.HeaderValues("Content-Security-Policy")));
+        Assert.Null(document.QuerySelector("meta[http-equiv='content-security-policy' i]"));
+    }
+
+    [Fact]
     public async Task ServerIslands_AreRenderedOnDemand()
     {
         var site = await sites.GetAsync(Fixture);

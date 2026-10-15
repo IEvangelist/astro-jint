@@ -63,6 +63,11 @@ export default {
         });
       }
 
+      case '/host-headers': {
+        const recorded = host.readClientHeaders(query.get('file') ?? '');
+        return json({ found: recorded !== null, headers: recorded === null ? null : JSON.parse(recorded) });
+      }
+
       case '/sha256': {
         const bytes = new Uint8Array((query.get('bytes') ?? '').split(',').filter(Boolean).map(Number));
         return json({

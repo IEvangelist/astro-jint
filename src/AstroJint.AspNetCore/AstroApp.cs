@@ -40,7 +40,7 @@ internal sealed partial class AstroApp : IAsyncDisposable
 
         var consoleSink = new LoggerConsoleSink(loggerFactory.CreateLogger(LoggerConsoleSink.Category));
         var sessions = new AstroSessionStore(sessionCache, _options.SessionIdleTimeout, loggerFactory.CreateLogger<AstroSessionStore>());
-        var factory = new AstroEngineFactory(_options, entryPath, ReadClientFile, ReadClientBytes, sessions, consoleSink);
+        var factory = new AstroEngineFactory(_options, entryPath, ReadClientFile, ReadClientBytes, ReadClientHeaders, sessions, consoleSink);
         _pool = new EnginePool<AstroEngineSlot>(_options.PoolSize, factory.CreateAsync, logger);
 
         LogLoaded(logger, Manifest.AstroVersion ?? "unknown", DistPath, Files.Count, _options.PoolSize);
@@ -202,6 +202,13 @@ internal sealed partial class AstroApp : IAsyncDisposable
     // Used by the bundle's image endpoint to load the original of a local image. Addressed like ReadClientFile.
     private byte[]? ReadClientBytes(string pathname) =>
         FindClientFile(pathname) is { } path ? File.ReadAllBytes(path) : null;
+
+    // Used by the bundle to give a prerendered 404 or 500 page the headers that were recorded for its file (see
+    // staticHeaders), which the static files middleware would have sent had the file been requested itself.
+    private string? ReadClientHeaders(string pathname) =>
+        Files.TryGetFile(Uri.UnescapeDataString(pathname), out var relativePath) && Files.GetHeaders(relativePath) is { } headers
+            ? JsonSerializer.Serialize(headers)
+            : null;
 
     private string? FindClientFile(string pathname) =>
         Files.TryGetFile(Uri.UnescapeDataString(pathname), out var relativePath)

@@ -13,6 +13,7 @@ internal sealed class AstroEngineFactory(
     string entryPath,
     Func<string, string?> readClientFile,
     Func<string, byte[]?> readClientBytes,
+    Func<string, string?> readClientHeaders,
     AstroSessionStore sessions,
     ConsoleSink consoleSink)
 {
@@ -84,6 +85,7 @@ internal sealed class AstroEngineFactory(
         Add("readClientBytes", pathname => pathname is not null && readClientBytes(pathname) is { } bytes
             ? engine.Intrinsics.ArrayBuffer.Construct(bytes)
             : JsValue.Null);
+        Add("readClientHeaders", pathname => ToJs(pathname is null ? null : readClientHeaders(pathname)));
 
         // A digest is cheap here and expensive in an interpreter, which matters for the ETag of an image.
         host.Set("sha256", new ClrFunction(engine, "sha256", (_, arguments) =>

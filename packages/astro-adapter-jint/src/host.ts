@@ -15,6 +15,11 @@ export interface AstroJintHost {
   readClientFile?(pathname: string): string | null;
   /** Bytes of a file below `dist/client`, addressed like `readClientFile`, or `null` when there is none. */
   readClientBytes?(pathname: string): ArrayBuffer | null;
+  /**
+   * The response headers recorded at build time for a file below `dist/client` (see the `staticHeaders` option),
+   * addressed like `readClientFile` and serialized as a JSON object, or `null` when there are none.
+   */
+  readClientHeaders?(pathname: string): string | null;
   /** Lowercase hex SHA-256 of an `ArrayBuffer`, computed by the host because an interpreter is slow at it. */
   sha256?(data: ArrayBuffer): string | null;
   /** The data stored for a session id, or `null` when there is none. Backed by the host's `IDistributedCache`. */

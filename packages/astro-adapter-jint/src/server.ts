@@ -9,13 +9,19 @@ if (host?.env) {
 const app = createApp({ streaming: false });
 
 // Prerendered 404/500 pages live in dist/client. The default implementation fetches them over
-// the network, which a sandboxed engine cannot do, so the host reads them from disk instead.
+// the network, which a sandboxed engine cannot do, so the host reads them from disk instead. Astro keeps the
+// headers of that response when it serves the page as a 404 or 500, so the ones recorded for the file (the
+// policy that `staticHeaders` moves out of the markup) are carried over here, as the host would send them.
 async function fetchPrerenderedErrorPage(url: string): Promise<Response> {
-  const html = host!.readClientFile!(new URL(url).pathname);
+  const { pathname } = new URL(url);
+  const html = host!.readClientFile!(pathname);
   if (html === null || html === undefined) {
     return new Response(null, { status: 404 });
   }
-  return new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8' } });
+  const recorded = host?.readClientHeaders?.(pathname);
+  const headers = new Headers(recorded ? JSON.parse(recorded) : undefined);
+  headers.set('content-type', 'text/html; charset=utf-8');
+  return new Response(html, { headers });
 }
 
 const PRERENDERED_FILE_ROUTE_TYPES = new Set(['page', 'endpoint']);

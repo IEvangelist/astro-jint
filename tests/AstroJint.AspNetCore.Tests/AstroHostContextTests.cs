@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace AstroJint.AspNetCore.Tests;
 
-/// <summary>What the host tells the bundle: <c>clientAddress</c>, <c>locals</c>, <c>env</c>, <c>readClientFile</c>, <c>readClientBytes</c> and <c>sha256</c>.</summary>
+/// <summary>What the host tells the bundle: <c>clientAddress</c>, <c>locals</c>, <c>env</c>, <c>readClientFile</c>, <c>readClientBytes</c>, <c>readClientHeaders</c> and <c>sha256</c>.</summary>
 public class AstroHostContextTests
 {
     [Fact]
@@ -146,6 +146,56 @@ public class AstroHostContextTests
         Assert.Equal(1000, host.GetProperty("length").GetInt32());
         Assert.Equal([0, 1, 2, 3, 4, 5], host.GetProperty("head").EnumerateArray().Select(value => value.GetInt32()));
         Assert.Equal(Convert.ToHexStringLower(SHA256.HashData(expected)), host.GetProperty("sha256").GetString());
+    }
+
+    [Fact]
+    public async Task ReadClientHeaders_ReturnsTheHeadersRecordedForAFile()
+    {
+        using var dist = DistFolder.CreateDefault()
+            .WithStaticHeaders("404.html", ("Content-Security-Policy", "script-src 'self' 'sha256-missing'"), ("X-Page", "404"));
+        await using var site = await TestSite.StartAsync(dist);
+
+        var host = await site.GetJsonAsync("/host-headers?file=%2F404.html");
+
+        Assert.True(host.GetProperty("found").GetBoolean());
+        var headers = host.GetProperty("headers");
+        Assert.Equal("script-src 'self' 'sha256-missing'", headers.GetProperty("Content-Security-Policy").GetString());
+        Assert.Equal("404", headers.GetProperty("X-Page").GetString());
+    }
+
+    [Theory]
+    [InlineData("/about/index.html")]
+    [InlineData("/missing.html")]
+    [InlineData("/../astro-jint.json")]
+    [InlineData("/private/.env")]
+    [InlineData("")]
+    public async Task ReadClientHeaders_ReturnsNullForAnythingWithoutRecordedHeaders(string path)
+    {
+        using var dist = DistFolder.CreateDefault()
+            .WithStaticHeaders("404.html", ("X-Page", "404"))
+            .WithStaticHeaders("private/.env", ("X-Page", "private"));
+        await using var site = await TestSite.StartAsync(dist);
+
+        var host = await site.GetJsonAsync($"/host-headers?file={Uri.EscapeDataString(path)}");
+
+        Assert.False(host.GetProperty("found").GetBoolean());
+    }
+
+    [Fact]
+    public async Task ReadClientHeaders_DecodesPercentEncodedPaths_AndStripsTheBase()
+    {
+        using var dist = DistFolder.Create(baseFolder: "/docs")
+            .WithClientFile("a file.html", "<p>spaced</p>")
+            .WithClientFile("404.html", "<p>missing</p>")
+            .WithStaticHeaders("a file.html", ("X-Page", "spaced"))
+            .WithStaticHeaders("404.html", ("X-Page", "404"));
+        await using var site = await TestSite.StartAsync(dist);
+
+        var spaced = await site.GetJsonAsync("/host-headers?file=%2Fdocs%2Fa%2520file.html");
+        var withBase = await site.GetJsonAsync("/host-headers?file=%2Fdocs%2F404.html");
+
+        Assert.Equal("spaced", spaced.GetProperty("headers").GetProperty("X-Page").GetString());
+        Assert.Equal("404", withBase.GetProperty("headers").GetProperty("X-Page").GetString());
     }
 
     [Theory]
