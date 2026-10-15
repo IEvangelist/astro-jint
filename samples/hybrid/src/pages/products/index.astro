@@ -1,13 +1,21 @@
 ---
 import Base from '../../layouts/Base.astro';
+import PageHead from '../../components/PageHead.astro';
 import { products } from '../../data/products';
 ---
 <Base title="Products">
-  <h1>Products</h1>
-  <p>This list is generated at build time. Every product page is rendered on demand.</p>
-  <ul>
-    {products.map((product) => (
-      <li><a href={`/products/${product.id}`}>{product.name}</a></li>
-    ))}
-  </ul>
+  <PageHead title="Products">
+    <p class="lead">This list is generated at build time. Every product page is rendered on demand.</p>
+  </PageHead>
+  <div class="wrap block">
+    <ul class="rows catalog">
+      {products.map((product) => (
+        <li>
+          <a href={`/products/${product.id}`}>{product.name}</a>
+          <p>{product.description}</p>
+          <span class="price">USD {product.price.toFixed(2)}</span>
+        </li>
+      ))}
+    </ul>
+  </div>
 </Base>

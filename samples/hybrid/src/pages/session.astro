@@ -2,15 +2,18 @@
 export const prerender = false;
 
 import Base from '../layouts/Base.astro';
+import PageHead from '../components/PageHead.astro';
 
 const visits = ((await Astro.session?.get('visits')) ?? 0) + 1;
 Astro.session?.set('visits', visits);
 ---
 <Base title="Session">
-  <h1>Session</h1>
-  <p>You loaded this page <strong id="visits">{visits}</strong> time(s) in this session.</p>
-  <p>
-    The session data lives in the <code>IDistributedCache</code> of the ASP.NET Core host, so it does not matter which
-    JavaScript engine renders the next request.
-  </p>
+  <PageHead title="Session" />
+  <div class="wrap block stack">
+    <p class="plate tally">You loaded this page <strong id="visits">{visits}</strong> time(s) in this session.</p>
+    <p class="measure">
+      The session data lives in the <code>IDistributedCache</code> of the ASP.NET Core host, so it does not matter which
+      JavaScript engine renders the next request.
+    </p>
+  </div>
 </Base>

@@ -1,11 +1,31 @@
 ---
 import Base from '../layouts/Base.astro';
+import PageHead from '../components/PageHead.astro';
 ---
 <Base title="About">
-  <h1>About</h1>
-  <p>
-    This sample shows how a site can mix both worlds. Pages that do not depend on a request are generated once by
-    <code>astro build</code>; pages that do are rendered by Astro's runtime inside the Jint JavaScript interpreter,
-    hosted by ASP.NET Core.
-  </p>
+  <PageHead title="About" />
+  <div class="wrap block split">
+    <p class="lead-large">
+      This sample shows how a site can mix both worlds. Pages that do not depend on a request are generated once by{' '}
+      <code>astro build</code>; pages that do are rendered by Astro's runtime inside the Jint JavaScript interpreter,
+      hosted by ASP.NET Core.
+    </p>
+    <aside class="plate legend">
+      <h2>Reading the pages</h2>
+      <ul class="legend-list">
+        <li>
+          <div>
+            <strong class="mark" data-mode="static">Generated at build time</strong>
+            <span>Built once by <code>astro build</code>. The host serves a file.</span>
+          </div>
+        </li>
+        <li>
+          <div>
+            <strong class="mark" data-mode="on-demand">Rendered on demand</strong>
+            <span>Rendered per request by Astro, inside Jint.</span>
+          </div>
+        </li>
+      </ul>
+    </aside>
+  </div>
 </Base>

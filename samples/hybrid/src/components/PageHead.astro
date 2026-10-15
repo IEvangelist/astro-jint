@@ -1,0 +1,15 @@
+---
+interface Props {
+  title: string;
+  how?: boolean;
+}
+
+const { title, how = true } = Astro.props;
+const mode = Astro.isPrerendered ? 'static' : 'on-demand';
+---
+
+<header class="page-head wrap">
+  <h1>{title}</h1>
+  {how && <p class="how" data-mode={mode}>{mode === 'static' ? 'Generated at build time and served as a file.' : 'Rendered on demand in Jint, for this request.'}</p>}
+  <slot />
+</header>

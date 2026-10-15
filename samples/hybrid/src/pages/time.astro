@@ -2,25 +2,63 @@
 export const prerender = false;
 
 import Base from '../layouts/Base.astro';
+import PageHead from '../components/PageHead.astro';
 
 const renderedAt = new Date().toISOString();
 ---
 <Base title="Time">
-  <h1>On-demand time</h1>
-  <p>Rendered at <time id="rendered-at" datetime={renderedAt}>{renderedAt}</time></p>
-  <p>Request id: <code id="request-id">{Astro.locals.traceId}</code></p>
-  <p>
-    <button id="ask" type="button">Ask the API</button>
-    <output id="api-time"></output>
-  </p>
+  <PageHead title="On-demand time" />
+  <div class="wrap block panels">
+    <section class="plate panel">
+      <h2>Rendered with this page</h2>
+      <dl class="readout">
+        <div>
+          <dt>Rendered at</dt>
+          <dd><time id="rendered-at" datetime={renderedAt}>{renderedAt}</time></dd>
+        </div>
+        <div>
+          <dt>Request id</dt>
+          <dd><code id="request-id">{Astro.locals.traceId}</code></dd>
+        </div>
+      </dl>
+    </section>
+    <section class="plate panel">
+      <h2>Asked from the browser</h2>
+      <p>The button calls the time API and shows the answer.</p>
+      <div class="ask-row">
+        <button id="ask" class="button" type="button">Ask the API</button>
+        <output id="api-time" class="answer"></output>
+      </div>
+    </section>
+  </div>
 
   <script>
-    const output = document.querySelector('#api-time');
-    document.querySelector('#ask')?.addEventListener('click', async () => {
-      const response = await fetch('/api/time');
-      const { now } = await response.json();
-      if (output) {
+    const ask = document.querySelector<HTMLButtonElement>('#ask');
+    const output = document.querySelector<HTMLOutputElement>('#api-time');
+
+    ask?.addEventListener('click', async () => {
+      if (!output) {
+        return;
+      }
+
+      ask.disabled = true;
+      output.dataset.state = 'loading';
+      output.textContent = 'Asking the API...';
+
+      try {
+        const response = await fetch('/api/time');
+        if (!response.ok) {
+          throw new Error(`The API answered ${response.status}.`);
+        }
+
+        const { now } = await response.json();
+        output.dataset.state = 'ready';
         output.textContent = now;
+      } catch {
+        output.dataset.state = 'error';
+        output.textContent = 'The API did not answer. Try again.';
+      } finally {
+        ask.disabled = false;
       }
     });
   </script>

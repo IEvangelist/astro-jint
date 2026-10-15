@@ -2,6 +2,7 @@
 export const prerender = false;
 
 import Base from '../../layouts/Base.astro';
+import PageHead from '../../components/PageHead.astro';
 import { products } from '../../data/products';
 
 const product = products.find((candidate) => candidate.id === Astro.params.id);
@@ -14,9 +15,17 @@ const price = euro ? `EUR ${(product.price * 0.92).toFixed(2)}` : `USD ${product
 Astro.response.headers.set('Cache-Control', 'public, max-age=60');
 ---
 <Base title={product.name}>
-  <h1>{product.name}</h1>
-  <p id="price">{price}</p>
-  <p>{product.description}</p>
-  <p><a href={euro ? '?currency=usd' : '?currency=eur'}>Show the price in {euro ? 'USD' : 'EUR'}</a></p>
-  <p><a href="/products">All products</a></p>
+  <PageHead title={product.name} />
+  <div class="wrap block">
+    <div class="plate product">
+      <p id="price" class="price-big">{price}</p>
+      <div class="product-body">
+        <p>{product.description}</p>
+        <div class="product-actions">
+          <a class="button button-quiet" href={euro ? '?currency=usd' : '?currency=eur'}>Show the price in {euro ? 'USD' : 'EUR'}</a>
+          <a href="/products">All products</a>
+        </div>
+      </div>
+    </div>
+  </div>
 </Base>

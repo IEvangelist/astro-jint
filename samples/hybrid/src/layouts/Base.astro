@@ -1,48 +1,73 @@
 ---
 import '../styles/site.css';
+import archivo from '../assets/fonts/archivo-latin-wght-normal.woff2?url';
+import BrandMark from '../components/BrandMark.astro';
 
 interface Props {
   title: string;
 }
 
 const { title } = Astro.props;
+
 const links = [
-  ['/', 'Home'],
-  ['/about', 'About'],
-  ['/blog', 'Blog'],
-  ['/products', 'Products'],
-  ['/time', 'Time'],
-  ['/contact', 'Contact'],
-  ['/session', 'Session'],
-  ['/me', 'Me'],
-  ['/diagnostics', 'Diagnostics'],
-];
+  ['/', 'Home', 'static'],
+  ['/about', 'About', 'static'],
+  ['/blog', 'Blog', 'static'],
+  ['/products', 'Products', 'static'],
+  ['/time', 'Time', 'on-demand'],
+  ['/contact', 'Contact', 'on-demand'],
+  ['/session', 'Session', 'on-demand'],
+  ['/me', 'Me', 'on-demand'],
+  ['/diagnostics', 'Diagnostics', 'on-demand'],
+] as const;
+
 const mode = Astro.isPrerendered ? 'static' : 'on-demand';
+const current = Astro.url.pathname.replace(/\/$/, '');
 ---
+
 <!doctype html>
-<html lang="en">
+<html lang="en" data-mode={mode}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preload" href={archivo} as="font" type="font/woff2" crossorigin />
     <title>{title} | Hybrid Astro on Jint</title>
   </head>
   <body>
-    <header>
-      <a class="brand" href="/">Hybrid Astro on Jint</a>
-      <nav>
-        {links.map(([href, label]) => (
-          <a href={href} aria-current={Astro.url.pathname.replace(/\/$/, '') === href.replace(/\/$/, '') ? 'page' : undefined}>{label}</a>
-        ))}
-      </nav>
+    <!--
+      THESIS: A hybrid site is a navigator's fix: printed ahead (build) versus sighted now (request). Every page says which. Refuses the dark dev-tool hero with glow and three feature cards.
+      OWN-WORLD: Nautical chart. Land is neutral paper, upright text, solid dots. Water is pale blue, italic live values, hollow rings. Neatline plates, scale strips, one magenta accent, Archivo, 2px corners.
+      STORY: A developer sees pages can be files or rendered in Jint, believes it from the live clock, and tries a live page.
+      FIRST VIEWPORT: Left: h1 up to 84px, one lead line, primary "Try a live page", secondary "Browse static pages". Right: chart plate, build timestamp above a shoreline, live server clock below.
+      FORM: Direction 5 of 7, assigned by seed a48d4845, staged as live mirror.
+    -->
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="bar wrap">
+        <a class="brand" href="/">
+          <BrandMark class="brand-mark" />
+          <span>Hybrid Astro on Jint</span>
+        </a>
+        <button class="menu-button" type="button" popovertarget="site-nav">Menu</button>
+        <nav id="site-nav" class="site-nav" popover aria-label="Primary">
+          {links.map(([href, label, linkMode]) => (
+            <a href={href} data-mode={linkMode} aria-current={current === href.replace(/\/$/, '') ? 'page' : undefined}>{label}</a>
+          ))}
+        </nav>
+      </div>
+      <div class="scale" aria-hidden="true"></div>
     </header>
-    <main>
+    <main id="main">
       <slot />
     </main>
-    <footer>
-      <span class="badge" data-mode={mode}>
-        {mode === 'static' ? 'Generated at build time' : 'Rendered on demand in Jint'}
-      </span>
+    <footer class="site-footer">
+      <div class="scale" aria-hidden="true"></div>
+      <div class="footer-row wrap">
+        <span class="badge" data-mode={mode}>{mode === 'static' ? 'Generated at build time' : 'Rendered on demand in Jint'}</span>
+        <span>Prototype adapter: Astro on Jint, hosted by ASP.NET Core.</span>
+        <a href="https://github.com/IEvangelist/astro-jint">Source on GitHub</a>
+      </div>
     </footer>
   </body>
 </html>

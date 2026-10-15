@@ -2,6 +2,7 @@
 export const prerender = false;
 
 import Base from '../layouts/Base.astro';
+import PageHead from '../components/PageHead.astro';
 
 const errors: { name?: string; message?: string } = {};
 let name = '';
@@ -30,19 +31,31 @@ if (Astro.request.method === 'POST') {
 const thanks = Astro.cookies.get('contact-name')?.value;
 ---
 <Base title="Contact">
-  <h1>Contact</h1>
-  {thanks && <p id="thanks">Thanks for your message, {thanks}!</p>}
-  <form method="post" action="/contact">
-    <label>
-      Name
-      <input name="name" value={name} />
-    </label>
-    {errors.name && <p class="error" id="name-error">{errors.name}</p>}
-    <label>
-      Message
-      <textarea name="message" rows="4">{message}</textarea>
-    </label>
-    {errors.message && <p class="error" id="message-error">{errors.message}</p>}
-    <button type="submit">Send</button>
-  </form>
+  <PageHead title="Contact" />
+  <div class="wrap block contact-grid">
+    <div>
+      {thanks && <p id="thanks" class="plate thanks">Thanks for your message, {thanks}!</p>}
+      <form class="plate form" method="post" action="/contact">
+        <div class="field">
+          <label for="name">Name</label>
+          <input id="name" name="name" value={name} autocomplete="name" aria-invalid={errors.name ? 'true' : undefined} aria-describedby={errors.name ? 'name-error' : undefined} />
+          {errors.name && <p class="error" id="name-error">{errors.name}</p>}
+        </div>
+        <div class="field">
+          <label for="message">Message</label>
+          <textarea id="message" name="message" rows="4" aria-invalid={errors.message ? 'true' : undefined} aria-describedby={errors.message ? 'message-error' : undefined}>{message}</textarea>
+          {errors.message && <p class="error" id="message-error">{errors.message}</p>}
+        </div>
+        <button class="button" type="submit">Send</button>
+      </form>
+    </div>
+    <aside class="plate steps">
+      <h2>What this form does</h2>
+      <ol>
+        <li>It posts to this page, which Astro renders in Jint.</li>
+        <li>Astro validates the fields and answers 400 with messages when something is missing.</li>
+        <li>A valid message sets an HttpOnly cookie and redirects with 303.</li>
+      </ol>
+    </aside>
+  </div>
 </Base>

@@ -1,5 +1,6 @@
 ---
 import Base from '../../layouts/Base.astro';
+import PageHead from '../../components/PageHead.astro';
 import { posts } from '../../data/posts';
 
 export function getStaticPaths() {
@@ -10,8 +11,12 @@ const { post } = Astro.props;
 ---
 <Base title={post.title}>
   <article>
-    <h1>{post.title}</h1>
-    {post.body.map((paragraph) => <p>{paragraph}</p>)}
+    <PageHead title={post.title} />
+    <div class="wrap block">
+      <div class="prose">
+        {post.body.map((paragraph) => <p>{paragraph}</p>)}
+      </div>
+    </div>
   </article>
-  <p><a href="/blog">Back to the blog</a></p>
+  <p class="wrap back"><a class="back-link" href="/blog">Back to the blog</a></p>
 </Base>

@@ -3,17 +3,30 @@ export const prerender = false;
 
 import { GREETING, API_TOKEN } from 'astro:env/server';
 import Base from '../layouts/Base.astro';
+import PageHead from '../components/PageHead.astro';
 ---
 <Base title="Diagnostics">
-  <h1>Diagnostics</h1>
-  <dl>
-    <dt>Greeting</dt>
-    <dd id="greeting">{GREETING}</dd>
-    <dt>API token</dt>
-    <dd id="api-token">{API_TOKEN ? `configured (${API_TOKEN.length} characters)` : 'not configured'}</dd>
-    <dt>Client address</dt>
-    <dd id="client-address">{Astro.clientAddress}</dd>
-    <dt>URL</dt>
-    <dd id="url">{Astro.url.href}</dd>
-  </dl>
+  <PageHead title="Diagnostics" />
+  <div class="wrap block">
+    <div class="plate readout-plate">
+      <dl class="readout">
+        <div>
+          <dt>Greeting</dt>
+          <dd id="greeting">{GREETING}</dd>
+        </div>
+        <div>
+          <dt>API token</dt>
+          <dd id="api-token">{API_TOKEN ? `configured (${API_TOKEN.length} characters)` : 'not configured'}</dd>
+        </div>
+        <div>
+          <dt>Client address</dt>
+          <dd id="client-address">{Astro.clientAddress}</dd>
+        </div>
+        <div>
+          <dt>URL</dt>
+          <dd id="url">{Astro.url.href}</dd>
+        </div>
+      </dl>
+    </div>
+  </div>
 </Base>

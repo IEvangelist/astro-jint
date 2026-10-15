@@ -1,0 +1,17 @@
+---
+interface Props {
+  class?: string;
+  ring?: boolean;
+}
+
+const { class: className, ring = true } = Astro.props;
+---
+
+<svg class={className} viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+  {ring && <circle cx="16" cy="16" r="12.5" fill="none" stroke="currentColor" stroke-width="1" />}
+  <path
+    fill="currentColor"
+    d="M16 2 L17.38 12.67 L22.36 9.64 L19.33 14.62 L30 16 L19.33 17.38 L22.36 22.36 L17.38 19.33 L16 30 L14.62 19.33 L9.64 22.36 L12.67 17.38 L2 16 L12.67 14.62 L9.64 9.64 L14.62 12.67 Z"
+  />
+  <path class="north" d="M16 2 L17.38 12.67 L14.62 12.67 Z" />
+</svg>

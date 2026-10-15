@@ -1,14 +1,18 @@
 ---
 import Base from '../../layouts/Base.astro';
+import PageHead from '../../components/PageHead.astro';
 import { posts } from '../../data/posts';
 ---
 <Base title="Blog">
-  <h1>Blog</h1>
-  <ul>
-    {posts.map((post) => (
-      <li>
-        <a href={`/blog/${post.slug}`}>{post.title}</a>: {post.summary}
-      </li>
-    ))}
-  </ul>
+  <PageHead title="Blog" />
+  <div class="wrap block">
+    <ul class="rows">
+      {posts.map((post) => (
+        <li>
+          <a href={`/blog/${post.slug}`}>{post.title}</a>
+          <p>{post.summary}</p>
+        </li>
+      ))}
+    </ul>
+  </div>
 </Base>

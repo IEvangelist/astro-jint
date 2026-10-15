@@ -2,13 +2,18 @@
 export const prerender = false;
 
 import Base from '../layouts/Base.astro';
+import PageHead from '../components/PageHead.astro';
 
 const { user, traceId } = Astro.locals;
 ---
 <Base title="Me">
-  <h1>Who am I?</h1>
-  {user
-    ? <p id="user">Signed in as <strong>{user}</strong>, as resolved by ASP.NET Core. <a href="/sign-out">Sign out</a></p>
-    : <p id="user">Anonymous. <a href="/sign-in/ada">Sign in as Ada</a>: ASP.NET Core issues the cookie, Astro only reads the result.</p>}
-  <p>Trace id: <code id="trace-id">{traceId}</code></p>
+  <PageHead title="Who am I?" />
+  <div class="wrap block stack">
+    <div class="plate identity">
+      {user
+        ? <p id="user">Signed in as <strong>{user}</strong>, as resolved by ASP.NET Core. <a href="/sign-out">Sign out</a></p>
+        : <p id="user">Anonymous. <a href="/sign-in/ada">Sign in as Ada</a>: ASP.NET Core issues the cookie, Astro only reads the result.</p>}
+      <p>Trace id: <code id="trace-id">{traceId}</code></p>
+    </div>
+  </div>
 </Base>
