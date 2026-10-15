@@ -1,0 +1,12 @@
+{
+  "name": "conformance-cb-image-deletion",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "dependencies": {
+    "@astrojs/markdoc": "^2.0.11",
+    "@astrojs/mdx": "^8.0.3",
+    "astro": "^7.3.6",
+    "astro-adapter-jint": "workspace:*"
+  }
+}
