@@ -40,11 +40,10 @@ internal static class AstroHttpBridge
         {
             if (!HttpMethods.IsGet(source.Method) && !HttpMethods.IsHead(source.Method))
             {
+                // The content headers live on the content, so even an empty body gets one: a form without fields posts
+                // nothing but a Content-Type, and formData() fails without it.
                 var body = await ReadBodyAsync(source, maxBodyBytes, cancellationToken).ConfigureAwait(false);
-                if (body.Length > 0)
-                {
-                    request.Content = new ByteArrayContent(body);
-                }
+                request.Content = new ByteArrayContent(body);
             }
 
             foreach (var header in source.Headers)

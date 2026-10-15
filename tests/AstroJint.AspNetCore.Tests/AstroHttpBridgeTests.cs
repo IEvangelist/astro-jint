@@ -269,14 +269,21 @@ public class AstroHttpBridgeTests
         Assert.Equal(0, context.Request.Body.Position);
     }
 
-    [Fact]
-    public async Task CreateRequest_WithAnEmptyBody_HasNoContent()
+    [Theory]
+    [InlineData("POST")]
+    [InlineData("PUT")]
+    [InlineData("PATCH")]
+    [InlineData("DELETE")]
+    public async Task CreateRequest_WithAnEmptyBody_HasEmptyContentThatKeepsTheContentHeaders(string method)
     {
-        var context = CreateContext("POST", []);
+        var context = CreateContext(method, []);
+        context.Request.ContentType = "application/x-www-form-urlencoded";
 
         using var request = await AstroHttpBridge.CreateRequestAsync(context.Request, 1024, CancellationToken.None);
 
-        Assert.Null(request.Content);
+        Assert.NotNull(request.Content);
+        Assert.Empty(await request.Content.ReadAsByteArrayAsync());
+        Assert.Equal("application/x-www-form-urlencoded", request.Content.Headers.ContentType!.MediaType);
     }
 
     [Fact]

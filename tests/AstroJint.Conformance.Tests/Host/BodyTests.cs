@@ -57,6 +57,19 @@ public class BodyTests(SiteHost sites)
     }
 
     [Fact]
+    public async Task EmptyFormBody_KeepsItsContentType()
+    {
+        var site = await sites.GetAsync(Fixture);
+        using var content = new ByteArrayContent([]);
+        content.Headers.ContentType = new("application/x-www-form-urlencoded");
+
+        using var response = await site.SendAsync(HttpMethod.Post, "/empty-form", content);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("""{"contentType":"application/x-www-form-urlencoded","fields":[]}""", await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
     public async Task StreamedResponse_IsDeliveredInFull()
     {
         var site = await sites.GetAsync(Fixture);
