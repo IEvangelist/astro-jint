@@ -1,5 +1,5 @@
 {
-  "name": "conformance-core-server-islands-content",
+  "name": "conformance-core-content",
   "private": true,
   "type": "module",
   "version": "0.0.0",

@@ -152,8 +152,13 @@ public class SsrPrerenderTests(SiteHost sites)
     {
         var site = await SiteAsync(InlineStylesheetsAlways);
 
-        var entry = await File.ReadAllTextAsync(Path.Combine(site.DistPath, "server", "entry.mjs"));
-
-        Assert.DoesNotContain("prerender-only", entry);
+        // The adapter splits the server build into entry.mjs and chunks/*.mjs, so the port reads all of them, not only the entry upstream reads.
+        var files = Directory.EnumerateFiles(Path.Combine(site.DistPath, "server"), "*.mjs", SearchOption.AllDirectories).ToList();
+        Assert.Contains(files, file => Path.GetFileName(file) == "entry.mjs");
+        foreach (var file in files)
+        {
+            var carries = (await File.ReadAllTextAsync(file)).Contains("prerender-only", StringComparison.Ordinal);
+            Assert.False(carries, $"{Path.GetRelativePath(site.DistPath, file)} should not carry inline CSS for prerendered routes");
+        }
     }
 }

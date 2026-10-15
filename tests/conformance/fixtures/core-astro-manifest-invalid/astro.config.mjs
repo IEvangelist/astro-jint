@@ -1,0 +1,12 @@
+import { defineConfig } from 'astro/config';
+import jint from 'astro-adapter-jint';
+import { withVariant } from '../../support/variant.mjs';
+
+export default defineConfig(withVariant({
+  adapter: jint(),
+  site: 'https://astro.build/',
+  i18n: {
+    locales: ['en', 'fr'],
+    defaultLocale: 'en',
+  },
+}));

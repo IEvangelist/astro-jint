@@ -10,11 +10,6 @@ namespace AstroJint.Conformance.Core;
 /// and <c>server-islands/custom-fetch</c> fixtures of Astro (<c>core-server-islands</c>, <c>core-server-islands-hybrid</c> and
 /// <c>core-server-islands-custom-fetch</c>).
 /// <list type="bullet">
-/// <item>The content collection of <c>ssr</c> (<c>content.config.ts</c>, <c>slotted-island.mdx</c>, the page that renders it and the
-/// <c>DefaultSlotWrapper</c> component) is the fixture <c>core-server-islands-content</c>. A build that renders a collection entry
-/// does not run on this adapter (GAP-CORE-1), and it would take the other tests of <c>ssr</c> with it. Its test is skipped for that
-/// gap. The one after it is not an upstream test: it is the same request with the SSR build split into chunks, and it passes, which
-/// is how the gap is isolated.</item>
 /// <item><c>app.render(new Request('http://example.com/...'))</c> becomes an HTTP request. A <c>POST</c> body is the string that
 /// <c>JSON.stringify</c> gives upstream, so it travels as <c>text/plain</c> like the body of an upstream <c>Request</c>, and
 /// <c>Origin: http://example.com</c> becomes the origin of the site, because the host builds the URL of a request from its
@@ -40,18 +35,12 @@ namespace AstroJint.Conformance.Core;
 public partial class ServerIslandsTests(SiteHost sites)
 {
     private const string Fixture = "core-server-islands";
-    private const string ContentFixture = "core-server-islands-content";
     private const string HybridFixture = "core-server-islands-hybrid";
     private const string CustomFetchFixture = "core-server-islands-custom-fetch";
 
     private const string InvalidEncryptedValue = "FC8337AF072BE5B1641501E1r8mLIhmIME1AV7UO9XmW9OLE";
 
     private static readonly object SsrConfig = new { security = new { checkOrigin = false } };
-
-    private static readonly object CodeSplitSsrBuild = new
-    {
-        vite = new { environments = new { ssr = new { build = new { rolldownOptions = new { output = new { codeSplitting = true } } } } } },
-    };
 
     [Fact(DisplayName = "Server islands: SSR: dev: HTML escapes scripts")]
     public async Task Page_WithScriptInProps_EscapesIt()
@@ -195,21 +184,10 @@ public partial class ServerIslandsTests(SiteHost sites)
         Assert.Empty(EncryptedPropsInQuery(await response.ReadTextAsync()));
     }
 
-    [Fact(
-        DisplayName = "Server islands: SSR: prod: renders server island inside a slot in an MDX content collection entry",
-        Skip = "GAP-CORE-1: the build of a site that renders a content collection entry keeps the manifest placeholder in entry.mjs, so every request fails")]
+    [Fact(DisplayName = "Server islands: SSR: prod: renders server island inside a slot in an MDX content collection entry")]
     public async Task ContentCollectionEntry_IslandInSlot_IsInsideTheWrapper()
     {
-        var site = await sites.GetAsync(ContentFixture);
-
-        await AssertIslandInsideWrapperAsync(site);
-    }
-
-    // Not an upstream test: the same request with the SSR build split into chunks, which is how GAP-CORE-1 is isolated.
-    [Fact(DisplayName = "Server islands: SSR: prod: renders server island inside a slot in an MDX content collection entry (code-split build)")]
-    public async Task ContentCollectionEntry_IslandInSlot_IsInsideTheWrapper_WhenTheBuildIsCodeSplit()
-    {
-        var site = await sites.GetAsync(ContentFixture, CodeSplitSsrBuild);
+        var site = await sites.GetAsync(Fixture, SsrConfig);
 
         await AssertIslandInsideWrapperAsync(site);
     }

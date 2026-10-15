@@ -24,7 +24,7 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
 | `sessions.test.ts` | 8 | 8 | 0 | 0 | 0 | `Core\SessionsTests.cs` | Fixture `core-sessions` (`sessions`); 3 of the `it`s are the tests of `Node\SessionsTests` and are not repeated. |
 | `session-false.test.ts` | 4 | 4 | 0 | 0 | 0 | `Core\SessionFalseTests.cs` | Fixture `core-session-config` with the JSON config `session: false`. |
 | `session-tree-shake.test.ts` | 5 | 0 | 5 | 0 | 0 | `Core\SessionTreeShakeTests.cs` | Fixture `core-session-config`, shared with `session-false.test.ts`. |
-| `server-islands.test.ts` | 19 | 9 | 7 | 1 | 2 | `Core\ServerIslandsTests.cs` | Fixtures `core-server-islands` (`server-islands/ssr` without its content collection), `core-server-islands-content` (the collection, GAP-CORE-1), `core-server-islands-hybrid` and `core-server-islands-custom-fetch`; the class has one more test than upstream (the gap with a code-split build). |
+| `server-islands.test.ts` | 19 | 10 | 7 | 0 | 2 | `Core\ServerIslandsTests.cs` | Fixtures `core-server-islands` (`server-islands/ssr`, with its content collection), `core-server-islands-hybrid` and `core-server-islands-custom-fetch`; the MDX content collection test was GAP-CORE-1 until dad60e1. |
 | `csp-server-islands.test.ts` | 5 | 4 | 0 | 0 | 1 | `Core\CspServerIslandsTests.cs` | Fixtures `core-server-islands` and `core-server-islands-hybrid` with the JSON config `security.csp: true`; helpers `Core\ServerIslandRequests.cs` and `Core\CspDigest.cs`. |
 | `csp.test.ts` | 8 | 7 | 1 | 0 | 0 | `Core\CspTests.cs` | Fixtures `core-csp` (the `kind` test is a JSON config variant), `core-csp-fonts` and `core-csp-adapter`. |
 | `custom-fetch-error-pages.test.ts` | 4 | 0 | 4 | 0 | 0 | `Core\CustomFetchErrorPagesTests.cs` | Fixture `core-custom-fetch-error-pages`. |
@@ -34,6 +34,13 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
 | `astro-envs.test.ts` | 13 | 10 | 3 | 0 | 0 | `Core\AstroEnvsTests.cs` | Fixture `core-astro-envs` (`@astrojs/vue`); the `SSR` describe is a JSON config variant (`output: 'server'`) with a runtime `Env`. |
 | `client-address-node.test.ts` | 2 | 0 | 2 | 0 | 0 | `Core\ClientAddressNodeTests.cs` | Fixture `core-client-address`; the class has one more test than upstream (no forwarded headers middleware). |
 | `request-signal.test.ts` | 3 | 0 | 1 | 2 | 0 | `Core\RequestSignalTests.cs` | Fixture `core-request-signal`; the 2 gaps are GAP-CORE-2 (skipped); the class has one more test than upstream (also skipped). |
+| `cache-memory-query.test.ts` | 7 | 7 | 0 | 0 | 0 | `Core\CacheMemoryQueryTests.cs` | Fixture `core-cache-memory-query` holds both upstream fixtures (`query.include` is a switch of its config); one engine per site. |
+| `live-loaders.test.ts` | 9 | 4 | 5 | 0 | 0 | `Core\LiveLoadersTests.cs` | Fixture `core-live-loaders`; the five `Dev` tests run against the production build. |
+| `content-collections.test.ts` | 25 | 4 | 1 | 0 | 20 | `Core\ContentCollectionsTests.cs` | Fixtures `core-content-ssr-integration` (the `SSR integration` block) and `core-content with spaces in folder name`; 20 N/A (static builds with no adapter, below). |
+| `content-collections-render.test.ts` | 10 | 10 | 0 | 0 | 0 | `Core\ContentCollectionsRenderTests.cs` | Fixture `core-content`: the `SSG` block is its static build, the `SSR` block the JSON config `output: 'server'`; one more test than upstream. |
+| `serializeManifest.test.ts` | 5 | 5 | 0 | 0 | 0 | `Core\SerializeManifestTests.cs` | Fixtures `core-astro-manifest` (also holds the page of `astro-manifest-client-script`) and `core-astro-manifest-invalid`. |
+| `logger.test.ts` | 2 | 0 | 2 | 0 | 0 | `Core\LoggerTests.cs` | Fixture `core-ssr-assets` (its `src/logger.mjs` logs a marker). |
+| `runtime-logger.test.ts` | 6 | 0 | 6 | 0 | 0 | `Core\RuntimeLoggerTests.cs` | Fixture `core-runtime-logger`, which has one endpoint that upstream does not have (`src/pages/messages.json.ts`). |
 
 ## Differences
 
@@ -45,7 +52,8 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
   rendering. `includes prerendered pages in the asset manifest` checks that `client/static/index.html` exists and is served.
   `SSR routes still have inline styles in the SSR manifest` reads `app.manifest.routes`; the port checks that `/not-prerendered`
   still answers with the inline `<style>`. The `readFile` assertions on the prerendered page request it from the host instead, and
-  `SSR entry chunk does not contain the prerender-only CSS string` reads `server/entry.mjs`, which is the server entry of this adapter too.
+  `SSR entry chunk does not contain the prerender-only CSS string` reads `server/entry.mjs` upstream; the adapter splits the server build into
+  `entry.mjs` and `chunks/*.mjs`, so the port reads every `.mjs` file under `server/`.
 - `ssr-dynamic.test.ts`: `Public assets take priority` asserts that `app.match()` finds no route for `/favicon.ico`; the port requests the file
   and compares its bytes with `client/favicon.ico` (the `/[id]` route would answer with an HTML page). `Includes page styles`
   also fetches the linked stylesheet.
@@ -102,9 +110,8 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
   runs in another process; the requests that must answer 200 show that the engine decrypts with that key. The five `dev` tests, the
   `custom fetch handler` test and the last `Hybrid mode` test run against the production build (`src/fetch.ts` is installed as the fetch
   handler by Astro's production entry; the endpoint of a static site answers once built). `supports fragments with named slots` requests
-  `/fragment`, as upstream does twice, and also `/named-fragment`, the page the fixture has for it. The content collection of `ssr` is a
-  fixture of its own, so that GAP-CORE-1 does not take the other tests with it; the extra test of the class requests the same page from a
-  build with `codeSplitting` turned on for the SSR environment, and passes.
+  `/fragment`, as upstream does twice, and also `/named-fragment`, the page the fixture has for it. `renders server island inside a slot in an MDX
+    content collection entry` was a gap (GAP-CORE-1) until dad60e1 and passes.
 - `csp-server-islands.test.ts`: the fixtures are the ones of `server-islands.test.ts` (`ssr` and `hybrid`) with `security.csp: true` as a
   JSON override, and the POST of the island carries the origin of the site. `SSR` / `omits the islands HTML` also checks (not asserted
   upstream) that the page answers with one `Content-Security-Policy` response header whose `script-src` holds the SHA-256 digest of
@@ -155,22 +162,61 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
   The state that the endpoints write lives in the module of the engine, so the tests use a site with one engine (`PoolSize = 1`, variant
   `one-engine`), which is busy until the host lets go of the request. Both are skipped as GAP-CORE-2. The `Dev server request abort signal`
   test only asserts that a request that is not aborted reports `aborted === false`, which the production build answers in the same way: adapted.
+- `cache-memory-query.test.ts`: the two upstream fixtures (`cache-memory-query` and `cache-memory-query-include`) are one fixture whose config
+  reads the switch `conformance.queryInclude` to give `memoryCache()` its `query.include` (`['page', 'sort']`), because `memoryCache()` is
+  not JSON. Upstream requests `http://example.com/cached?...` through `app.render` and reads `X-Astro-Cache`; the tests send the same paths
+  to the host. The memory cache lives in the engine, so every site runs one engine (`PoolSize = 1`, variant `one-engine`), as upstream's one
+  in-process app does.
+- `live-loaders.test.ts`: the fixture's config uses this adapter where upstream uses `@astrojs/node`. The five `Dev` tests start a dev server and
+  request pages from it; their assertions do not depend on it, so they run against the production build (adapted). The four `SSR` tests build the
+  fixture and call `app.render`, which is the host (ported). `deepEqual` is a JSON comparison of what `/api/` returns.
+- `content-collections.test.ts`: the `SSR integration` block builds `content-ssr-integration` as an on-demand site and requests its pages from the
+  host; the vite plugin of the test (`preventNodeBuiltinDependencyPlugin`) is in the fixture's config, so every build runs that check.
+  `Throws deprecation error when using getEntryBySlug` expects a 500; the port also checks (not asserted upstream) that the host logged the
+  deprecation error, so that it cannot pass because every request fails. `With spaces in path` is adapted: upstream builds the project with no
+  adapter and asserts that nothing throws; the port builds it with the adapter, in a folder whose name has spaces, once prerendered and once
+  with `output: 'server'` (the engine renders it), and requests the page. The other 20 `it`s are N/A (below). All four `SSR integration`
+  tests were GAP-CORE-1 gaps until dad60e1.
+- `content-collections-render.test.ts`: the `Build - SSG` block is the build with no `output` (every page prerendered into `dist/client`), whose files
+  are requested from the host; the `Build - SSR` block is the JSON config `output: 'server'`. The fixture's config sets
+  `build.inlineStylesheets: 'never'`, the default when upstream wrote the test. `De-duplicates CSS used both in layout and directly in target
+  page` requests `/with-layout-prop/`, which the fixture has no route for, so upstream looks for duplicates in a 404 page; the port also asserts
+  the 404 (not asserted upstream) and adds one test that is not upstream's, the same check on `/blog/promo/4-launch-week`, a page that exists
+  and links a stylesheet. The five `Build - SSR` tests were GAP-CORE-1 gaps until dad60e1.
+- `serializeManifest.test.ts`: `astro-manifest` and `astro-manifest-client-script` are one fixture, `core-astro-manifest` (the page of the
+  second is `client-script.astro`; every build of the fixture builds it, which is what that test checks). What upstream reads with `readFile`
+  from a static build is requested from the host, which serves the files of `dist/client`; the SSR tests request `/blog/server/` of a build with
+  `output: 'server'`. The directory suffixes that the page prints (`/dist/serializeManifest-.../`) are the name of the output directory of the
+  build under test (`dist` or `dist-<hash>`). `astro-manifest-invalid` expects an `AstroError` named `ServerOnlyModule`; the harness reports a
+  failed build as an exception with the output of `astro build`, which holds the name of the error.
+- `logger.test.ts`: upstream reads `app.logger.options.destination.__custom` / `.__relative` of the app that the test adapter returns, which
+  nothing over HTTP can reach, and a destination whose `write()` is empty shows up nowhere else. The destinations of the port log a marker with
+  `console.log` when the engine creates them, which the host writes to its log (category `AstroJint.Console`), and the tests assert that marker
+  next to the 200 of `/`. The `src/logger.mjs` of the fixture (the `relative entrypoint`) has that line added, which upstream does not have.
+  `custom entrypoint` writes its module outside the project (a folder of the test output), deletes it as soon as the build is done and starts the
+  engine afterwards (`WarmUp = false`), so that the bundle cannot import it at runtime; upstream passes a `file:` URL object, the JSON config holds
+  the absolute path.
+- `runtime-logger.test.ts`: upstream reads the messages that `src/logger.mjs` records from the `globalThis` of the test process, which the built
+  server shares. The engine has a `globalThis` of its own, so the fixture has one endpoint that upstream does not have,
+  `src/pages/messages.json.ts`, which returns the recorded messages as JSON (`?clear` empties the record after the answer; the endpoint leaves
+  out the `missing-in-handler` warning of its own request). The state is per engine, so the sites run one engine (`PoolSize = 1`); the four tests
+  about the bootstrap each start a host of their own (a variant each) and make the first request themselves. The build runs at the default `info`
+  log level, not upstream's `warn` (`logLevel` is an inline flag the harness cannot set); the tests select messages by their text, as upstream does.
 
 ## Gaps
 
-- `GAP-CORE-1`: a site that renders a content collection entry (`render(entry)` of a Markdown or MDX entry) builds without errors, but
-  every request to it answers 500. `server/entry.mjs` still holds `deserializeManifest("@@ASTRO_MANIFEST_REPLACE@@")`, so the engine
-  fails while it is created (`TypeError: Invalid URL: undefined`, from `new URL(serializedManifest.rootDir)`) and the host logs an
-  unhandled `PromiseRejectedException`. Skipped test: `ServerIslandsTests.ContentCollectionEntry_IslandInSlot_IsInsideTheWrapper`
-  (fixture `core-server-islands-content`). Suspected area: the adapter sets `ssr.target: 'webworker'`, for which Vite 8 builds the SSR
-  environment with `codeSplitting: false` when it has one input, so `entry.mjs` holds every module, among them the `?astroPropagatedAssets`
-  module of the entry (placeholder `@@ASTRO-LINKS@@`) and `virtual:astro:manifest` (placeholder `@@ASTRO_MANIFEST_REPLACE@@`). Astro injects
-  both with `mutate(fileName, code)`, and `contentAssetsBuildPostHook` starts from the original `chunk.code`, so its result replaces the
-  manifest that `manifestBuildPostHook` injected into the same chunk (Astro 7.3.8 and its main branch). Reproduce: build the fixture and
-  search `dist/server/entry.mjs` for the placeholder, or run the test without its `Skip`. With
-  `vite.environments.ssr.build.rolldownOptions.output.codeSplitting: true` (the JSON config of the extra test of the class, which passes)
-  the manifest is injected and the same page renders; the host already loads the `chunks/` modules that split build needs. It is
-  not a fix that a fixture can make, so the lead decides: for example setting that option in the adapter's `astro:config:setup`.
+- `GAP-CORE-1` (fixed by dad60e1): a site that rendered a content collection entry (`render(entry)` of a Markdown or MDX entry) built without
+  errors, but every request to it answered 500. The server build was a single `server/entry.mjs` (the adapter sets `ssr.target: 'webworker'`,
+  for which Vite 8 builds the SSR environment with `codeSplitting: false` when it has one input) that still held
+  `deserializeManifest("@@ASTRO_MANIFEST_REPLACE@@")`, so the engine failed while it was created (`TypeError: Invalid URL: undefined`, from
+  `new URL(serializedManifest.rootDir)`) and the host logged an unhandled `PromiseRejectedException`. Astro injects the manifest
+  (`virtual:astro:manifest`) and the links of the `?astroPropagatedAssets` module of the entry with `mutate(fileName, code)`, and
+  `contentAssetsBuildPostHook` starts from the original `chunk.code`, so with both in one chunk its result replaced the manifest that
+  `manifestBuildPostHook` had injected. dad60e1 (`Split the server build so content collection entries render`) makes the adapter set
+  `environments.ssr.build.rolldownOptions.output.codeSplitting: true`: the server build is `server/entry.mjs` plus `server/chunks/*.mjs`
+  and the manifest is injected. The tests that were skipped for it run and pass: `ServerIslandsTests.ContentCollectionEntry_IslandInSlot_IsInsideTheWrapper`,
+  the four `SSR integration` tests of `ContentCollectionsTests` and the five `Build - SSR` tests of `ContentCollectionsRenderTests`. The fix has
+  coverage of its own on main: the fixture `tests/conformance/fixtures/content-collection` and `Host/ContentCollectionHostTests.cs`.
 - `GAP-CORE-2`: `request.signal` never aborts in the engine when the client disconnects. An endpoint that waits for the `abort` event of
   `request.signal` (`/stream` and `/sse` of `core-request-signal`) keeps its request pending; when the client closes the connection the host
   stops waiting (the cancellation token of the request goes to `Engine.WebApi.InvokeFetchHandlerAsync`) and retires the engine, so no `abort`
@@ -205,3 +251,12 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
   this adapter or the host take part.
 - `csp-server-islands.test.ts` / `Hybrid` / `build (no adapter)`: builds the hybrid fixture with `adapter: undefined` and expects the
   `NoAdapterInstalledServerIslands` error (it is in `server-islands.test.ts` as well). There is no adapter, host or request involved.
+- `content-collections.test.ts` / `Query` (`Collection` 5, `Entry` 3 and `Scripts` 1), `Static paths integration` (3), `Base configuration` (3) and
+  `Mutation` (1): each builds a static fixture with no adapter and reads what the build wrote (`json/*.json`, `*/index.html`, the scripts and CSS they
+  link), which `getCollection()`, `getEntry()` and `render()` computed in Node at build time. The content layer does not run in the engine and the
+  host would only serve the files, so a port would test the static file layer and not the runtime; the `SSR integration` block (ported) is the one
+  that runs `astro:content` in the engine.
+- `content-collections.test.ts` / `With legacy config`, `With empty markdown file` and `With numbers for IDs`: each expects `astro build` to fail with a
+  message of the content layer (`Found legacy content config file in`, `**title**: Required`, `returned an entry with an invalid id`), and
+  `With empty collections directory` builds a project with an empty collection and reads its static `index.html`. All of it is build-time
+  validation of the content layer: no adapter, no runtime and no request.
