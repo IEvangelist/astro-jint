@@ -31,6 +31,8 @@ public class RuntimeLoggerTests(SiteHost sites)
 {
     private const string Fixture = "core-runtime-logger";
 
+    private static readonly string[] Levels = ["debug", "info", "warn", "error"];
+
     private async Task<ConformanceSite> StartAsync(string variant) =>
         await sites.GetAsync(Fixture, configure: options => options.PoolSize = 1, variant: variant);
 
@@ -81,7 +83,7 @@ public class RuntimeLoggerTests(SiteHost sites)
         {
             Assert.Equal(JsonValueKind.String, message!["message"]!.GetValueKind());
             Assert.True(message["newLine"]!.GetValueKind() is JsonValueKind.True or JsonValueKind.False);
-            Assert.Contains((string)message["level"]!, new[] { "debug", "info", "warn", "error" });
+            Assert.Contains((string)message["level"]!, Levels);
         }
     }
 

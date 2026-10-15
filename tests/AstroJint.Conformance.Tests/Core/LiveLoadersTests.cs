@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Text.Json.Nodes;
 
@@ -37,7 +38,7 @@ public class LiveLoadersTests(SiteHost sites)
 
     private static string EntryByObject(int age) => """
         {"entry":{"id":"456","data":{"title":"Page 456","age":@AGE@,"collection":"liveStuff"},"cacheHint":{"tags":["page:456"],"lastModified":"2025-01-01T00:00:00.000Z"}},"cacheHint":{"tags":["page:456"],"lastModified":"2025-01-01T00:00:00.000Z"}}
-        """.Replace("@AGE@", age.ToString());
+        """.Replace("@AGE@", age.ToString(CultureInfo.InvariantCulture));
 
     [Fact(DisplayName = "Live content collections: Dev: can load live data")]
     public async Task Api_LoadsLiveData()

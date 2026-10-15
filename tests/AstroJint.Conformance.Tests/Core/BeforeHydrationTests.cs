@@ -87,10 +87,9 @@ public class BeforeHydrationTests(SiteHost sites)
 
         var html = await GetPageAsync(site);
 
-        var islands = html.QuerySelectorAll("astro-island[before-hydration-url]");
-        Assert.Single(islands);
+        var island = Assert.Single(html.QuerySelectorAll("astro-island[before-hydration-url]"));
         // Not asserted upstream: the host serves the script that the attribute names.
-        await AssertScriptIsServedAsync(site, islands[0].GetAttribute("before-hydration-url")!);
+        await AssertScriptIsServedAsync(site, island.GetAttribute("before-hydration-url")!);
     }
 
     [Fact(DisplayName = "Astro Scripts before-hydration: SSR: Is not used by an integration: Build: Does not include before-hydration-url on the astro-island")]

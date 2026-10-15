@@ -31,12 +31,11 @@ public class SsrLargeArrayTests(SiteHost sites)
         Assert.Single(html.QuerySelectorAll("head meta[name=\"viewport\"]"));
         Assert.Single(html.QuerySelectorAll("head link[rel=\"icon\"]"));
         Assert.Single(html.QuerySelectorAll("main"));
-        var islands = html.QuerySelectorAll("astro-island");
-        Assert.Single(islands);
+        var island = Assert.Single(html.QuerySelectorAll("astro-island"));
         Assert.Equal("Hello, Solid!", string.Concat(html.QuerySelectorAll("h1").Select(h1 => h1.TextContent)));
 
         // Not asserted upstream: the prop arrives whole. Astro writes an array as [1, [...items]] and an object as [0, {...}] in `props`.
-        var props = JsonNode.Parse(islands[0].GetAttribute("props")!)!.AsObject();
+        var props = JsonNode.Parse(island.GetAttribute("props")!)!.AsObject();
         var largeProp = props["largeProp"]!.AsArray();
         Assert.Equal(1, largeProp[0]!.GetValue<int>());
         var items = largeProp[1]!.AsArray();

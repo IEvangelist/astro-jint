@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Web;
@@ -187,7 +188,7 @@ public class CoreImageTests(SiteHost sites)
                 case '\t' or '\n' or '\r':
                     break;
                 case < ' ':
-                    builder.Append('%').Append(((int)character).ToString("X2"));
+                    builder.Append('%').Append(((int)character).ToString("X2", CultureInfo.InvariantCulture));
                     break;
                 case ' ' or '"' or '#' or '<' or '>' or '\'' or > '~':
                     throw new NotSupportedException($"The URL parser changes the character U+{(int)character:X4} in a query.");

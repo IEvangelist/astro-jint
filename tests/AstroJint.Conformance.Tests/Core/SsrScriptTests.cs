@@ -13,7 +13,7 @@ namespace AstroJint.Conformance.Core;
 /// <c>setAdapter()</c> call to carry it, and the test checks the client files of that build.
 /// </summary>
 [Trait("Upstream", "core/ssr-script.test.ts")]
-public class SsrScriptTests(SiteHost sites)
+public partial class SsrScriptTests(SiteHost sites)
 {
     private const string Fixture = "core-ssr-script";
 
@@ -109,7 +109,7 @@ public class SsrScriptTests(SiteHost sites)
 
         // The query parameters end up in the dynamic import of the page script, and the host serves the chunk regardless of them.
         using var script = await site.GetAsync(await ScriptSourceAsync(site, "/dynamic"));
-        var chunk = Regex.Match(await script.ReadTextAsync(), @"import\(`\./(?<file>confetti\.[\w-]+\.js\?dpl=test123)`\)");
+        var chunk = ConfettiImport().Match(await script.ReadTextAsync());
         Assert.True(chunk.Success, "The page script does not import the chunk with the asset query parameters.");
         using var chunkResponse = await site.GetAsync($"/_astro/{chunk.Groups["file"].Value}");
         Assert.Equal(HttpStatusCode.OK, chunkResponse.StatusCode);
@@ -194,4 +194,7 @@ public class SsrScriptTests(SiteHost sites)
         Assert.Matches(@"^https://cdn\.example\.com/assets/entry\..{8}\.mjs$", source);
         await AssertScriptIsServedAsync(site, source);
     }
+
+    [GeneratedRegex(@"import\(`\./(?<file>confetti\.[\w-]+\.js\?dpl=test123)`\)")]
+    private static partial Regex ConfettiImport();
 }

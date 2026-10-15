@@ -13,6 +13,8 @@ public class SsrScriptsTests(SiteHost sites)
 {
     private const string Fixture = "core-ssr-scripts";
 
+    private static readonly string[] HydrationUrlAttributes = ["component-url", "renderer-url"];
+
     [Fact(DisplayName = "Are included in the manifest.assets so that an adapter can know to serve static")]
     public async Task HydrationScripts_AreServedAsStaticFiles()
     {
@@ -23,7 +25,7 @@ public class SsrScriptsTests(SiteHost sites)
         Assert.Equal(HttpStatusCode.OK, page.StatusCode);
         var island = (await page.ReadHtmlAsync()).QuerySelector("astro-island");
         Assert.NotNull(island);
-        var urls = new[] { "component-url", "renderer-url" }.Select(name => island.GetAttribute(name)).ToList();
+        var urls = HydrationUrlAttributes.Select(name => island.GetAttribute(name)).ToList();
         Assert.All(urls, Assert.NotNull);
         foreach (var url in urls)
         {

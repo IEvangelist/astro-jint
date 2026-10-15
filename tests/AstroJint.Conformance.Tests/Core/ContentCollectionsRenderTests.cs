@@ -55,9 +55,8 @@ public class ContentCollectionsRenderTests(SiteHost sites)
     {
         var html = await GetHtmlAsync(site, path);
 
-        var h2 = html.QuerySelectorAll("h2");
-        Assert.Single(h2);
-        Assert.Equal("true", h2[0].GetAttribute("data-components-export-applied"));
+        var h2 = Assert.Single(html.QuerySelectorAll("h2"));
+        Assert.Equal("true", h2.GetAttribute("data-components-export-applied"));
     }
 
     private static async Task AssertCssIsNotDuplicatedAsync(ConformanceSite site, string path, HttpStatusCode expectedStatus)
