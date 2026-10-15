@@ -41,7 +41,7 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
 | `serializeManifest.test.ts` | 5 | 5 | 0 | 0 | 0 | `Core\SerializeManifestTests.cs` | Fixtures `core-astro-manifest` (also holds the page of `astro-manifest-client-script`) and `core-astro-manifest-invalid`. |
 | `logger.test.ts` | 2 | 0 | 2 | 0 | 0 | `Core\LoggerTests.cs` | Fixture `core-ssr-assets` (its `src/logger.mjs` logs a marker). |
 | `runtime-logger.test.ts` | 6 | 0 | 6 | 0 | 0 | `Core\RuntimeLoggerTests.cs` | Fixture `core-runtime-logger`, which has one endpoint that upstream does not have (`src/pages/messages.json.ts`). |
-| `ssr-large-array.test.ts` | 1 | 0 | 0 | 1 | 0 | `Core\SsrLargeArrayTests.cs` | Fixture `core-large-array` (`@astrojs/solid-js`); the gap is GAP-CORE-3 (skipped); the class has one more test than upstream (with the `worker` resolve condition, passes). |
+| `ssr-large-array.test.ts` | 1 | 1 | 0 | 0 | 0 | `Core\SsrLargeArrayTests.cs` | Fixture `core-large-array` (`@astrojs/solid-js`, the upstream sources); the test also reads the `props` attribute of the island. |
 | `ssr-partytown.test.ts` | 2 | 1 | 1 | 0 | 0 | `Core\SsrPartytownTests.cs` | Fixture `core-ssr-partytown` (`@astrojs/partytown`). |
 | `ssr-renderers-static-vue.test.ts` | 2 | 1 | 1 | 0 | 0 | `Core\SsrRenderersStaticVueTests.cs` | Fixture `core-ssr-renderers-static-vue` (`@astrojs/vue`); one more test than upstream (the control with an on-demand page). |
 | `before-hydration.test.ts` | 5 | 5 | 0 | 0 | 0 | `Core\BeforeHydrationTests.cs` | Fixture `core-before-hydration` (`@astrojs/preact`); the four builds of upstream are JSON config variants (`output`, `conformance.beforeHydration`). |
@@ -56,7 +56,7 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
 | `core-image.test.ts` | 117 | 10 | 8 | 2 | 97 | `Core\CoreImageTests.cs` | Fixture `core-image-ssr` (the upstream SSR fixture, plus `src/custom-endpoint.ts` of `core-image` and a `public/pixel.svg` that upstream does not have; `base`, `trailingSlash`, the data-URL pattern and the custom endpoint are JSON config variants). The 20 `it`s with a test are the on-demand groups (`dev ssr`, `prod ssr`, `prod ssr - SVG format validation`, `trailing slash on the endpoint`, the two SSR tests of `support base option correctly`) and `custom endpoint`; 18 run and pass, and the two gaps, GAP-CORE-5 and GAP-CORE-6, are skipped; two more tests than upstream (pass). The 97 N/A are explained below. |
 | `image-service-targets.test.ts` | 4 | 0 | 0 | 1 | 3 | `Core\ImageServiceTargetsTests.cs` | Fixture `core-image-ssr` (the `srcAlias` and `wrappingPrerenderer` switches). The `it` of the service that Vite resolves runs for two prerenderers upstream: the default one is ported and passes, the wrapping one is GAP-CORE-4 (skipped), so the `it` is counted as a gap. The other three need `image.service.{build,runtime}`, which Astro 7.3.8 does not implement, or a dev server. One more test than upstream (passes). |
 
-Total: 43 files, 376 `it`s = 148 ported, 78 adapted, 9 gap, 141 N/A.
+Total: 43 files, 376 `it`s = 149 ported, 78 adapted, 8 gap, 141 N/A.
 
 ## Differences
 
@@ -218,10 +218,9 @@ Total: 43 files, 376 `it`s = 148 ported, 78 adapted, 9 gap, 141 N/A.
   out the `missing-in-handler` warning of its own request). The state is per engine, so the sites run one engine (`PoolSize = 1`); the four tests
   about the bootstrap each start a host of their own (a variant each) and make the first request themselves. The build runs at the default `info`
   log level, not upstream's `warn` (`logLevel` is an inline flag the harness cannot set); the tests select messages by their text, as upstream does.
-- `ssr-large-array.test.ts`: the only `it` is a gap (`GAP-CORE-3`): a Solid island renders no HTML with the default configuration of this adapter.
-  The test has the upstream assertions and one more, not asserted upstream: the `props` attribute of the island holds the whole prop (`[1, [...]]`,
-  600 items, each with `foo` = `bar`). A second test, which upstream does not have, runs the same checks with
-  `vite.ssr.resolve.conditions` set to `worker`, `module`, `browser` and `development|production` (a JSON config variant) and passes.
+- `ssr-large-array.test.ts`: the test has the upstream assertions and one more, not asserted upstream: the `props` attribute of the island holds the
+  whole prop (`[1, [...]]`, 600 items, each with `foo` = `bar`). The Solid island renders on the server because the adapter puts `worker` in
+  `vite.ssr.resolve.conditions` (`GAP-CORE-3`, fixed).
 - `ssr-partytown.test.ts`: `The partytown scripts are in the manifest` looks for `/~partytown/partytown-sw.js` in `app.manifest.assets`, which nothing
   over HTTP can read. The manifest lists the files that the build puts in `dist/client` so that a request for one never reaches a route, so the port
   requests every file of `dist/client/~partytown` (the service worker among them) and compares the bytes with the file on disk.
@@ -314,17 +313,15 @@ Total: 43 files, 376 `it`s = 148 ported, 78 adapted, 9 gap, 141 N/A.
   `docs/spikes/03-engine-pool-performance.md`) and the way the engine makes the `Request` (its `signal` is not aborted by that token). A user of
   `request.signal` (a streaming endpoint that must release a resource) never learns that the client left. Reproduce: run the three tests
   without their `Skip` (the constant `Gap` of the class).
-- `GAP-CORE-3`: a Solid island renders no HTML on the server. The adapter sets `vite.ssr.target: 'webworker'`, and for that target Vite 8 resolves
-  the packages of the server build with the client conditions (`module`, `browser` and `development|production`, no `worker`), so `solid-js/web`
-  is its browser build, where `renderToString` and `renderToStringAsync` only log `... is not supported in the browser, returning undefined` (both
-  lines are in the host log, category `AstroJint.Console`). The page answers 200 but the island is the text `undefined` followed by an `astro-island`
-  with no server markup and without its slot content (the `h1` of `core-large-array` is missing; the 600 objects of the prop are in `props`). The
-  `exports` of `solid-js` have a `worker` condition, listed before `browser`, that points at the server build, and the non-upstream test
-  `LargeIslandProp_WithTheWorkerCondition_IsTheRightHtml` shows that the engine renders the page whole (viewport, icon, `main`, one island, the `h1`
-  and the 600 objects) when `vite.ssr.resolve.conditions` has `worker`. A user of `@astrojs/solid-js` with this adapter has to set that option
-  themselves today. Suspected area: the `vite.ssr` block of `astro:config:setup` in `packages/astro-adapter-jint/src/index.ts`, which could
-  add the `worker` condition. Skipped test: `SsrLargeArrayTests.LargeIslandProp_ArrayBufferBody_IsTheRightHtml`. Reproduce: run it without its
-  `Skip`.
+- `GAP-CORE-3` (fixed by 579f973): a Solid island rendered no HTML on the server. The adapter sets `vite.ssr.target: 'webworker'`, and for that target
+  Vite 8 resolved the packages of the server build with the client conditions (`module`, `browser` and `development|production`, no `worker`), so
+  `solid-js/web` was its browser build, where `renderToString` and `renderToStringAsync` only log `... is not supported in the browser, returning undefined`.
+  The page answered 200 but the island was the text `undefined` followed by an `astro-island` with no server markup and without its slot content (the
+  `h1` of `core-large-array` was missing). The `exports` of `solid-js` have a `worker` condition, listed before `browser`, that points at the server build.
+  579f973 (`Keep function source text and resolve the worker condition so Svelte and Solid render`) makes the adapter set `vite.ssr.resolve.conditions` to
+  `worker`, `module`, `browser` and `development|production`, and makes the host keep the source text of functions
+  (`ModuleParsingOptions.RetainFunctionSourceText`: `@astrojs/svelte` claims a component with `Component.toString()`, which was `[native code]`), so
+  Svelte renders too. The test that was skipped for it runs and passes: `SsrLargeArrayTests.LargeIslandProp_ArrayBufferBody_IsTheRightHtml`.
 - `GAP-CORE-4`: a user integration that calls `setPrerenderer` (in `astro:build:start`) cannot be built together with this adapter, with `output: 'static'`
   or `'server'`: the build stops at "Building server entrypoints..." with Vite's `rolldownOptions.input should not be an html file when building for SSR.
   Please specify a dedicated SSR entry.` (the harness raises it as an `InvalidOperationException` that holds the build output). In

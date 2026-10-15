@@ -9,42 +9,20 @@ namespace AstroJint.Conformance.Core;
 /// integration and <c>output: 'server'</c>; the sources are the upstream ones). The page passes an array of 600 objects as a prop of a Solid
 /// island, so the <c>props</c> attribute of the island and the response are large. <c>app.render(new Request('http://example.com/'))</c> is
 /// <c>GET /</c> and <c>response.arrayBuffer()</c> is reading the body as bytes, which are decoded as UTF-8 as upstream does. The port also
-/// reads the <c>props</c> attribute, which upstream does not, to see that all 600 objects are in the response.
-/// <para>
-/// GAP-CORE-3: the upstream test is skipped because the page renders no Solid HTML with the default configuration of this adapter. Its
-/// <c>ssr.target: 'webworker'</c> makes Vite resolve <c>solid-js/web</c> to the browser build, whose <c>renderToString</c> only logs "not
-/// supported in the browser" and returns <c>undefined</c>, so the island is empty and its slot (the <c>h1</c>) is missing. Not upstream: the
-/// second test runs the same checks when <c>vite.ssr.resolve.conditions</c> has <c>worker</c>, the condition Solid maps to its server build,
-/// which shows that the engine renders the large prop whole once the right build is resolved.
-/// </para>
+/// reads the <c>props</c> attribute, which upstream does not, to see that all 600 objects are in the response. The Solid island renders on
+/// the server because the adapter puts <c>worker</c> in <c>vite.ssr.resolve.conditions</c>, which makes Vite resolve <c>solid-js/web</c> to
+/// its server build (GAP-CORE-3, fixed in 579f973).
 /// </summary>
 [Trait("Upstream", "core/ssr-large-array.test.ts")]
 public class SsrLargeArrayTests(SiteHost sites)
 {
     private const string Fixture = "core-large-array";
 
-    [Fact(DisplayName = "SSR with Large Array and client rendering: Using response.arrayBuffer() gets the right HTML",
-        Skip = "GAP-CORE-3: Vite resolves solid-js/web to its browser build for the adapter's webworker SSR target, so the Solid island renders no HTML on the server")]
+    [Fact(DisplayName = "SSR with Large Array and client rendering: Using response.arrayBuffer() gets the right HTML")]
     public async Task LargeIslandProp_ArrayBufferBody_IsTheRightHtml()
     {
         var site = await sites.GetAsync(Fixture);
 
-        await AssertTheRightHtml(site);
-    }
-
-    [Fact(DisplayName = "Not upstream: SSR with Large Array and client rendering: the island renders when the SSR build resolves solid-js for workers")]
-    public async Task LargeIslandProp_WithTheWorkerCondition_IsTheRightHtml()
-    {
-        var site = await sites.GetAsync(Fixture, new
-        {
-            vite = new { ssr = new { resolve = new { conditions = new[] { "worker", "module", "browser", "development|production" } } } },
-        });
-
-        await AssertTheRightHtml(site);
-    }
-
-    private static async Task AssertTheRightHtml(ConformanceSite site)
-    {
         using var response = await site.GetAsync("/");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var data = await response.Content.ReadAsByteArrayAsync();
