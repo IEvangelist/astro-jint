@@ -1,0 +1,115 @@
+# Measures the C# side of the adapter on a GitHub-hosted runner: BenchmarkDotNet (one operation at a time, in
+# this process) and the load test (the real sample host, over loopback). The numbers go to the job summary and
+# to an artifact. A shared runner is noisy: read a number as a rough size and compare runs of this workflow only.
+name: Benchmarks
+
+on:
+  workflow_dispatch:
+    inputs:
+      filter:
+        description: BenchmarkDotNet filter, for example *Static* or *Bridge*
+        default: "*"
+      full:
+        description: Run the full BenchmarkDotNet job instead of the quick one (much slower)
+        type: boolean
+        default: false
+      duration:
+        description: Seconds of measurement for each load test scenario
+        default: "10"
+  push:
+    branches: [main]
+    paths:
+      - src/**
+      - packages/astro-adapter-jint/**
+      - samples/**
+      - benchmarks/**
+      - Directory.Build.props
+      - Directory.Packages.props
+      - .github/workflows/benchmarks.yml
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  MSBUILDDISABLENODEREUSE: "1"
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  benchmarks:
+    name: Benchmarks
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build the sample site
+        run: |
+          pnpm install --frozen-lockfile --filter "hybrid..."
+          pnpm --filter "hybrid..." build
+
+      - name: Build the benchmarks and the sample host
+        run: |
+          dotnet build benchmarks/AstroJint.Benchmarks -c Release -p:SkipAstroSiteBuild=true
+          dotnet build benchmarks/AstroJint.LoadTest -c Release
+          dotnet build samples/HybridHost -c Release -p:SkipAstroSiteBuild=true
+
+      - name: Describe the runner
+        run: |
+          $cpu = (Get-CimInstance Win32_Processor | Select-Object -First 1).Name
+          "## Runner" >> $env:GITHUB_STEP_SUMMARY
+          "" >> $env:GITHUB_STEP_SUMMARY
+          "$env:ImageOS $env:ImageVersion, $cpu, $([Environment]::ProcessorCount) logical processors, .NET $(dotnet --version), Node $(node --version)" >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Run BenchmarkDotNet
+        env:
+          BDN_FILTER: ${{ inputs.filter || '*' }}
+          BDN_FULL: ${{ inputs.full }}
+        run: |
+          $arguments = @('--filter', $env:BDN_FILTER, '--exporters', 'json', '--artifacts', "$env:RUNNER_TEMP/bdn")
+          if ($env:BDN_FULL -ne 'true') { $arguments += '--quick' }
+          dotnet run -c Release --no-build --project benchmarks/AstroJint.Benchmarks -- @arguments
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "## BenchmarkDotNet" >> $env:GITHUB_STEP_SUMMARY
+          Get-ChildItem "$env:RUNNER_TEMP/bdn/results" -Filter *-report-github.md | ForEach-Object {
+            "" >> $env:GITHUB_STEP_SUMMARY
+            Get-Content $_.FullName >> $env:GITHUB_STEP_SUMMARY
+          }
+
+      - name: Run the load test
+        env:
+          LOAD_DURATION: ${{ inputs.duration || '10' }}
+        run: |
+          $dist = Join-Path $env:GITHUB_WORKSPACE 'samples/hybrid/dist'
+          dotnet benchmarks/AstroJint.LoadTest/bin/Release/net10.0/AstroJint.LoadTest.dll `
+            --launch samples/HybridHost/bin/Release/net10.0/HybridHost.dll `
+            --env "Astro__DistPath=$dist" `
+            --scenario all --gc-stats /api/host --warmup 5 --duration $env:LOAD_DURATION | Tee-Object -FilePath loadtest.md
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "## Load test" >> $env:GITHUB_STEP_SUMMARY
+          "" >> $env:GITHUB_STEP_SUMMARY
+          Get-Content loadtest.md >> $env:GITHUB_STEP_SUMMARY
+
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: benchmarks
+          path: |
+            ${{ runner.temp }}/bdn/results
+            loadtest.md
+          retention-days: 30

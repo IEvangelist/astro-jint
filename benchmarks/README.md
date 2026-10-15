@@ -1,7 +1,8 @@
 # Benchmarks
 
-Two tools measure the C# side of the adapter. Neither is part of the test suite, and neither runs
-in CI: numbers depend on the machine, so they are for looking at a change, not for gating one.
+Two tools measure the C# side of the adapter. Neither is part of the test suite, and nothing is gated
+on them: numbers depend on the machine, so they are for looking at a change, not for gating one.
+`.github/workflows/benchmarks.yml` runs both on a GitHub-hosted runner, see [GitHub Actions](#github-actions).
 
 | Tool | Measures | Use it to answer |
 | --- | --- | --- |
@@ -79,3 +80,16 @@ Reading the numbers:
 
 The settings of the host (Server GC, pool size) are the ones that are measured, so pass them with
 `--env` rather than editing the host.
+
+## GitHub Actions
+
+`.github/workflows/benchmarks.yml` builds the sample site and runs both tools on a `windows-latest` runner. Start it from
+the Actions tab (Run workflow). It also starts on a push to `main` that changes the library, the adapter, the sample, the
+benchmarks or the workflow. The inputs of a manual run are `filter` (the BenchmarkDotNet filter, default `*`), `full` (the
+full BenchmarkDotNet job instead of `--quick`) and `duration` (seconds of each load test scenario, default 10).
+
+- The numbers are in the job summary: a `Runner` line (image, CPU, logical processors, .NET and Node versions), the
+  BenchmarkDotNet tables and the load test table. The artifact `benchmarks` keeps the BenchmarkDotNet reports (Markdown,
+  CSV, HTML and JSON) and `loadtest.md` for 30 days.
+- A shared runner has few cores and varies from run to run. Compare runs of this workflow with each other, not with a number
+  from a developer machine, and read a single run as a rough size. The workflow never fails on a number.

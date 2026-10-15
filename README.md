@@ -243,8 +243,12 @@ dotnet test --project tests/AstroJint.Conformance.Tests/AstroJint.Conformance.Te
 - The build runs the .NET analyzers (`AnalysisMode=Recommended`, code style enforced) and the library also turns on every
   performance rule and treats diagnostics as errors, because it sits on the path of each request. Every project builds with
   zero warnings; keep it that way.
-- Benchmarks and the load test are not tests and do not run in CI. See [benchmarks/README.md](benchmarks/README.md), for
-  example `dotnet run -c Release --project benchmarks/AstroJint.Benchmarks -- --filter "*Static*"`.
+- Benchmarks and the load test are not tests, so the test workflow does not run them. See
+  [benchmarks/README.md](benchmarks/README.md), for example
+  `dotnet run -c Release --project benchmarks/AstroJint.Benchmarks -- --filter "*Static*"`.
+- GitHub Actions: `.github/workflows/ci.yml` builds the solution and runs the adapter, unit and sample tests, and, on pushes
+  to `main` and on demand, the conformance suite. `.github/workflows/benchmarks.yml` runs both benchmark tools and publishes
+  the numbers to the job summary and to an artifact. Nothing is gated on a number: they depend on the machine.
 
 ## Conformance
 

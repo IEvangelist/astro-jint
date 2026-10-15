@@ -1,0 +1,95 @@
+# Builds the adapter and the sample site, then runs the tests of the adapter, the library and the sample.
+# The conformance suite (Astro's own adapter tests, ported) builds 106 Astro fixtures and takes much longer,
+# so it runs for pushes to main and on demand: Actions > CI > Run workflow > conformance.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      conformance:
+        description: Also run the conformance suite
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DOTNET_NOLOGO: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  MSBUILDDISABLENODEREUSE: "1"
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install the packages of the sample site
+        run: pnpm install --frozen-lockfile --filter "hybrid..."
+
+      - name: Build the adapter and the sample site
+        run: pnpm --filter "hybrid..." build
+
+      - name: Build the solution
+        run: dotnet build AstroJint.slnx -c Release -p:SkipAstroSiteBuild=true
+
+      - name: Test the adapter
+        run: pnpm --filter astro-adapter-jint test
+
+      - name: Test the library
+        run: dotnet test --project tests/AstroJint.AspNetCore.Tests -c Release --no-build
+
+      - name: Test the sample site and its host
+        run: dotnet test --project tests/AstroJint.Sample.Tests -c Release --no-build
+
+  conformance:
+    name: Conformance
+    if: github.event_name == 'push' || inputs.conformance
+    runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      CONFORMANCE_BUILD_SLOTS: "2"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install the packages of every fixture
+        run: pnpm install --frozen-lockfile
+
+      - name: Run the conformance suite
+        run: dotnet test --project tests/AstroJint.Conformance.Tests -c Release
