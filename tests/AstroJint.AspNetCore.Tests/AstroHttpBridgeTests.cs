@@ -297,12 +297,98 @@ public class AstroHttpBridgeTests
     }
 
     [Fact]
+    public async Task CreateRequest_ReadsABodyThatArrivesInParts()
+    {
+        var context = CreateContext("POST", "a body in many parts"u8.ToArray());
+        context.Request.Body = new TrickleStream("a body in many parts"u8.ToArray());
+
+        using var request = await AstroHttpBridge.CreateRequestAsync(context.Request, 1024, CancellationToken.None);
+
+        Assert.Equal("a body in many parts", await request.Content!.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task CreateRequest_KeepsWhatArrivedOfABodyThatEndsBeforeItsDeclaredLength()
+    {
+        var context = CreateContext("POST", "four"u8.ToArray());
+        context.Request.ContentLength = 10;
+
+        using var request = await AstroHttpBridge.CreateRequestAsync(context.Request, 1024, CancellationToken.None);
+
+        Assert.Equal("four", await request.Content!.ReadAsStringAsync());
+        Assert.Equal(4, request.Content.Headers.ContentLength);
+    }
+
+    [Fact]
+    public async Task CreateRequest_ReadsABodyWithoutADeclaredLength()
+    {
+        var context = CreateContext("POST", "chunked body"u8.ToArray());
+        context.Request.ContentLength = null;
+
+        using var request = await AstroHttpBridge.CreateRequestAsync(context.Request, 1024, CancellationToken.None);
+
+        Assert.Equal("chunked body", await request.Content!.ReadAsStringAsync());
+        Assert.Equal(12, request.Content.Headers.ContentLength);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task CreateRequest_ReadsALargeBodyWhetherOrNotItsLengthIsDeclared(bool declared)
+    {
+        var body = new byte[150_000];
+        for (var index = 0; index < body.Length; index++)
+        {
+            body[index] = (byte)(index % 251);
+        }
+
+        var context = CreateContext("POST", body);
+        if (!declared)
+        {
+            context.Request.ContentLength = null;
+        }
+
+        using var request = await AstroHttpBridge.CreateRequestAsync(context.Request, 1_000_000, CancellationToken.None);
+
+        Assert.Equal(body, await request.Content!.ReadAsByteArrayAsync());
+        Assert.Equal(body.Length, request.Content.Headers.ContentLength);
+    }
+
+    [Theory]
+    [InlineData("GET")]
+    [InlineData("POST")]
+    [InlineData("PUT")]
+    [InlineData("DELETE")]
+    [InlineData("HEAD")]
+    [InlineData("OPTIONS")]
+    [InlineData("PATCH")]
+    [InlineData("PURGE")]
+    public async Task CreateRequest_CarriesTheMethod(string method)
+    {
+        var context = CreateContext(method);
+
+        using var request = await AstroHttpBridge.CreateRequestAsync(context.Request, 1024, CancellationToken.None);
+
+        Assert.Equal(method, request.Method.Method);
+    }
+
+    [Fact]
+    public async Task CreateRequest_SharesTheInstancesOfTheCommonMethods()
+    {
+        using var get = await AstroHttpBridge.CreateRequestAsync(CreateContext().Request, 1024, CancellationToken.None);
+        using var post = await AstroHttpBridge.CreateRequestAsync(CreateContext("POST", []).Request, 1024, CancellationToken.None);
+
+        Assert.Same(HttpMethod.Get, get.Method);
+        Assert.Same(HttpMethod.Post, post.Method);
+    }
+
+    [Fact]
     public async Task CreateRequest_RejectsADeclaredBodyOverTheLimitWithoutReadingIt()
     {
         var context = CreateContext("POST", new byte[11]);
 
-        await Assert.ThrowsAsync<AstroRequestBodyTooLargeException>(() =>
-            AstroHttpBridge.CreateRequestAsync(context.Request, 10, CancellationToken.None));
+        await Assert.ThrowsAsync<AstroRequestBodyTooLargeException>(async () =>
+            await AstroHttpBridge.CreateRequestAsync(context.Request, 10, CancellationToken.None));
         Assert.Equal(0, context.Request.Body.Position);
     }
 
@@ -312,117 +398,127 @@ public class AstroHttpBridgeTests
         var context = CreateContext("POST", new byte[40_000]);
         context.Request.ContentLength = null;
 
-        await Assert.ThrowsAsync<AstroRequestBodyTooLargeException>(() =>
-            AstroHttpBridge.CreateRequestAsync(context.Request, 20_000, CancellationToken.None));
+        await Assert.ThrowsAsync<AstroRequestBodyTooLargeException>(async () =>
+            await AstroHttpBridge.CreateRequestAsync(context.Request, 20_000, CancellationToken.None));
+    }
+
+    private static HttpResponseMessage CreateResponse(HttpStatusCode status, string body = "")
+    {
+        var response = new HttpResponseMessage(status) { Content = new ByteArrayContent(Encoding.UTF8.GetBytes(body)) };
+        return response;
     }
 
     [Fact]
-    public async Task ReadResponse_CopiesStatusHeadersAndBody()
+    public async Task BufferResponse_LeavesTheContentThatJintHandsOverAsItIs()
     {
-        using var response = new HttpResponseMessage(HttpStatusCode.Created)
-        {
-            Content = new StringContent("<h1>Hi</h1>", Encoding.UTF8, "text/html"),
-        };
-        response.Headers.TryAddWithoutValidation("Set-Cookie", "a=1; Path=/");
-        response.Headers.TryAddWithoutValidation("Set-Cookie", "b=2; Path=/");
-        response.Headers.TryAddWithoutValidation("X-Custom", "yes");
+        using var response = CreateResponse(HttpStatusCode.OK, "hello");
+        var content = response.Content;
 
-        var result = await AstroHttpBridge.ReadResponseAsync(response, CancellationToken.None);
+        await AstroHttpBridge.BufferResponseAsync(response, CancellationToken.None);
 
-        Assert.Equal(201, result.StatusCode);
-        Assert.Equal("<h1>Hi</h1>", Encoding.UTF8.GetString(result.Body));
-        Assert.Equal(["a=1; Path=/", "b=2; Path=/"], result.Headers.Single(h => h.Key == "Set-Cookie").Value.ToArray());
-        Assert.Equal("yes", result.Headers.Single(h => h.Key == "X-Custom").Value.ToString());
-        Assert.Equal("text/html; charset=utf-8", result.Headers.Single(h => h.Key == "Content-Type").Value.ToString());
+        Assert.Same(content, response.Content);
     }
 
     [Fact]
-    public async Task ReadResponse_KeepsHeaderValuesExactlyAsTheScriptSetThem()
+    public async Task BufferResponse_LoadsContentThatIsProducedWhileItIsRead()
     {
-        using var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent([]) };
-        response.Content.Headers.TryAddWithoutValidation("Content-Type", "text/plain;charset=utf-8");
+        var source = new LazyContent("late body");
+        using var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = source };
 
-        var result = await AstroHttpBridge.ReadResponseAsync(response, CancellationToken.None);
+        await AstroHttpBridge.BufferResponseAsync(response, CancellationToken.None);
 
-        Assert.Equal("text/plain;charset=utf-8", result.Headers.Single(h => h.Key == "Content-Type").Value.ToString());
-    }
-
-    [Fact]
-    public async Task ReadResponse_DropsConnectionLevelHeaders()
-    {
-        using var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent([1, 2, 3]) };
-        response.Headers.TransferEncodingChunked = true;
-        response.Headers.ConnectionClose = true;
-
-        var result = await AstroHttpBridge.ReadResponseAsync(response, CancellationToken.None);
-
-        Assert.DoesNotContain(result.Headers, h => h.Key is "Transfer-Encoding" or "Connection" or "Content-Length");
-        Assert.Equal([1, 2, 3], result.Body);
-    }
-
-    [Fact]
-    public async Task ReadResponse_CarriesTheReasonPhrase()
-    {
-        using var response = new HttpResponseMessage(HttpStatusCode.OK) { ReasonPhrase = "tasty", Content = new ByteArrayContent([]) };
-
-        var result = await AstroHttpBridge.ReadResponseAsync(response, CancellationToken.None);
-
-        Assert.Equal("tasty", result.ReasonPhrase);
-    }
-
-    [Fact]
-    public async Task WriteResponse_WritesTheReasonPhrase()
-    {
-        var context = CreateContext();
-
-        await AstroHttpBridge.WriteResponseAsync(context, new AstroResponse(200, [], [], "tasty \tfine"));
-
-        Assert.Equal("tasty \tfine", context.Features.GetRequiredFeature<IHttpResponseFeature>().ReasonPhrase);
-    }
-
-    [Theory]
-    [InlineData(null)]
-    [InlineData("")]
-    [InlineData("two\r\nSet-Cookie: x=1")]
-    [InlineData("line\nfeed")]
-    [InlineData("caf\u00e9")]
-    [InlineData("nul\0")]
-    public async Task WriteResponse_LeavesTheStandardPhraseWhenTheTextIsNotAReasonPhrase(string? reasonPhrase)
-    {
-        var context = CreateContext();
-
-        await AstroHttpBridge.WriteResponseAsync(context, new AstroResponse(200, [], [], reasonPhrase));
-
-        Assert.Null(context.Features.GetRequiredFeature<IHttpResponseFeature>().ReasonPhrase);
+        Assert.Equal(1, source.Serializations);
+        Assert.Equal("late body", await response.Content.ReadAsStringAsync());
+        Assert.Equal(1, source.Serializations);
     }
 
     [Fact]
     public async Task WriteResponse_WritesStatusHeadersLengthAndBody()
     {
         var context = CreateContext();
-        var response = new AstroResponse(
-            201,
-            [
-                new("Content-Type", "text/plain"),
-                new("Set-Cookie", new StringValues(["a=1", "b=2"])),
-            ],
-            "hello"u8.ToArray());
+        using var response = CreateResponse(HttpStatusCode.Created, "hello");
+        response.Content.Headers.TryAddWithoutValidation("Content-Type", "text/plain");
+        response.Headers.TryAddWithoutValidation("Set-Cookie", "a=1; Path=/");
+        response.Headers.TryAddWithoutValidation("Set-Cookie", "b=2; Path=/");
+        response.Headers.TryAddWithoutValidation("X-Custom", "yes");
 
         await AstroHttpBridge.WriteResponseAsync(context, response);
 
         Assert.Equal(201, context.Response.StatusCode);
         Assert.Equal(5, context.Response.ContentLength);
         Assert.Equal("text/plain", context.Response.Headers.ContentType.ToString());
-        Assert.Equal(["a=1", "b=2"], context.Response.Headers.SetCookie.ToArray());
+        Assert.Equal(["a=1; Path=/", "b=2; Path=/"], context.Response.Headers.SetCookie.ToArray());
+        Assert.Equal("yes", context.Response.Headers["X-Custom"].ToString());
         Assert.Equal("hello", ReadBody(context));
+    }
+
+    [Fact]
+    public async Task WriteResponse_KeepsHeaderValuesExactlyAsTheScriptSetThem()
+    {
+        var context = CreateContext();
+        using var response = CreateResponse(HttpStatusCode.OK);
+        response.Content.Headers.TryAddWithoutValidation("Content-Type", "text/plain;charset=utf-8");
+
+        await AstroHttpBridge.WriteResponseAsync(context, response);
+
+        Assert.Equal("text/plain;charset=utf-8", context.Response.Headers.ContentType.ToString());
+    }
+
+    [Theory]
+    [InlineData("Connection")]
+    [InlineData("Keep-Alive")]
+    [InlineData("Proxy-Connection")]
+    [InlineData("TE")]
+    [InlineData("Trailer")]
+    [InlineData("Transfer-Encoding")]
+    [InlineData("Upgrade")]
+    [InlineData("Expect")]
+    public async Task WriteResponse_DropsConnectionLevelHeaders(string name)
+    {
+        var context = CreateContext();
+        using var response = CreateResponse(HttpStatusCode.OK, "abc");
+        Assert.True(response.Headers.TryAddWithoutValidation(name, "value"));
+
+        await AstroHttpBridge.WriteResponseAsync(context, response);
+
+        Assert.False(context.Response.Headers.ContainsKey(name));
+        Assert.Equal(3, context.Response.ContentLength);
+        Assert.Equal("abc", ReadBody(context));
+    }
+
+    [Fact]
+    public async Task WriteResponse_WritesTheReasonPhrase()
+    {
+        var context = CreateContext();
+        using var response = CreateResponse(HttpStatusCode.OK);
+        response.ReasonPhrase = "tasty \tfine";
+
+        await AstroHttpBridge.WriteResponseAsync(context, response);
+
+        Assert.Equal("tasty \tfine", context.Features.GetRequiredFeature<IHttpResponseFeature>().ReasonPhrase);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("caf\u00e9")]
+    public async Task WriteResponse_LeavesTheStandardPhraseWhenTheTextIsNotAReasonPhrase(string reasonPhrase)
+    {
+        var context = CreateContext();
+        using var response = CreateResponse(HttpStatusCode.OK);
+        response.ReasonPhrase = reasonPhrase;
+
+        await AstroHttpBridge.WriteResponseAsync(context, response);
+
+        Assert.Null(context.Features.GetRequiredFeature<IHttpResponseFeature>().ReasonPhrase);
     }
 
     [Fact]
     public async Task WriteResponse_ToAHeadRequest_SendsTheLengthButNoBody()
     {
         var context = CreateContext("HEAD");
+        using var response = CreateResponse(HttpStatusCode.OK, "hello");
 
-        await AstroHttpBridge.WriteResponseAsync(context, new AstroResponse(200, [], "hello"u8.ToArray()));
+        await AstroHttpBridge.WriteResponseAsync(context, response);
 
         Assert.Equal(5, context.Response.ContentLength);
         Assert.Equal("", ReadBody(context));
@@ -436,8 +532,10 @@ public class AstroHttpBridgeTests
     public async Task WriteResponse_SendsNoBodyOrLengthForBodylessStatuses(int status)
     {
         var context = CreateContext();
+        using var response = CreateResponse((HttpStatusCode)status, "ignored");
+        response.Headers.TryAddWithoutValidation("ETag", "\"x\"");
 
-        await AstroHttpBridge.WriteResponseAsync(context, new AstroResponse(status, [new("ETag", "\"x\"")], "ignored"u8.ToArray()));
+        await AstroHttpBridge.WriteResponseAsync(context, response);
 
         Assert.Equal(status, context.Response.StatusCode);
         Assert.Null(context.Response.ContentLength);
@@ -449,11 +547,64 @@ public class AstroHttpBridgeTests
     public async Task WriteResponse_WithAnEmptyBody_SendsAZeroLength()
     {
         var context = CreateContext();
+        using var response = CreateResponse(HttpStatusCode.NotFound);
 
-        await AstroHttpBridge.WriteResponseAsync(context, new AstroResponse(404, [], []));
+        await AstroHttpBridge.WriteResponseAsync(context, response);
 
         Assert.Equal(404, context.Response.StatusCode);
         Assert.Equal(0, context.Response.ContentLength);
+    }
+
+    [Fact]
+    public async Task WriteResponse_WithoutContent_SendsAZeroLength()
+    {
+        var context = CreateContext();
+        using var response = new HttpResponseMessage(HttpStatusCode.NotFound);
+
+        await AstroHttpBridge.BufferResponseAsync(response, CancellationToken.None);
+        await AstroHttpBridge.WriteResponseAsync(context, response);
+
+        Assert.Equal(404, context.Response.StatusCode);
+        Assert.Equal(0, context.Response.ContentLength);
+        Assert.Equal("", ReadBody(context));
+    }
+
+    [Fact]
+    public async Task WriteResponse_WritesContentThatWasBufferedFirst()
+    {
+        var context = CreateContext();
+        using var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new LazyContent("late body") };
+
+        await AstroHttpBridge.BufferResponseAsync(response, CancellationToken.None);
+        await AstroHttpBridge.WriteResponseAsync(context, response);
+
+        Assert.Equal(9, context.Response.ContentLength);
+        Assert.Equal("late body", ReadBody(context));
+    }
+
+    // Reads three bytes at the most per call, as a connection that delivers a body in parts does.
+    private sealed class TrickleStream(byte[] data) : MemoryStream(data)
+    {
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) =>
+            base.ReadAsync(buffer[..Math.Min(buffer.Length, 3)], cancellationToken);
+    }
+
+    // Content whose length is not known up front and that is produced when it is read.
+    private sealed class LazyContent(string text) : HttpContent
+    {
+        public int Serializations { get; private set; }
+
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+        {
+            Serializations++;
+            return stream.WriteAsync(Encoding.UTF8.GetBytes(text)).AsTask();
+        }
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            return false;
+        }
     }
 
     [Theory]

@@ -95,7 +95,8 @@ internal sealed partial class AstroApp : IAsyncDisposable
 
         using (request)
         {
-            var response = await RenderCoreAsync(context, request).ConfigureAwait(false);
+            // The message is ours to dispose, and it has to stay until its body is written: the body is not copied.
+            using var response = await RenderCoreAsync(context, request).ConfigureAwait(false);
             if (response is not null)
             {
                 await AstroHttpBridge.WriteResponseAsync(context, response).ConfigureAwait(false);
@@ -105,8 +106,9 @@ internal sealed partial class AstroApp : IAsyncDisposable
 
     public ValueTask DisposeAsync() => Pool.DisposeAsync();
 
-    // Returns null when the outcome (an error status, or a client that left) has already been dealt with.
-    private async Task<AstroResponse?> RenderCoreAsync(HttpContext context, HttpRequestMessage request)
+    // Returns null when the outcome (an error status, or a client that left) has already been dealt with. The response
+    // that it returns is complete and independent of the engine, which goes back to the pool before the caller sees it.
+    private async Task<HttpResponseMessage?> RenderCoreAsync(HttpContext context, HttpRequestMessage request)
     {
         var aborted = context.RequestAborted;
         var localsJson = SerializeLocals(context);
@@ -148,14 +150,18 @@ internal sealed partial class AstroApp : IAsyncDisposable
 
         // An engine whose JavaScript was interrupted, or whose memory budget ran out, is replaced rather than reused.
         var discard = false;
+        HttpResponseMessage? response = null;
+        var handedOver = false;
         try
         {
             slot.Context.ClientAddress = AstroHttpBridge.GetClientAddress(context);
             slot.Context.LocalsJson = localsJson;
             slot.Context.Cancellation = token;
 
-            using var message = await slot.Engine.WebApi.InvokeFetchHandlerAsync(request, token).ConfigureAwait(false);
-            return await AstroHttpBridge.ReadResponseAsync(message, token).ConfigureAwait(false);
+            response = await slot.Engine.WebApi.InvokeFetchHandlerAsync(request, token).ConfigureAwait(false);
+            await AstroHttpBridge.BufferResponseAsync(response, token).ConfigureAwait(false);
+            handedOver = true;
+            return response;
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -188,6 +194,11 @@ internal sealed partial class AstroApp : IAsyncDisposable
         }
         finally
         {
+            if (!handedOver)
+            {
+                response?.Dispose();
+            }
+
             slot.Context.Clear();
             Pool.Return(slot, discard);
         }

@@ -74,10 +74,10 @@ public class BridgeBenchmarks
     public async Task<int> ResponseToHttpContext()
     {
         using var message = CreateResponseMessage();
-        var response = await AstroHttpBridge.ReadResponseAsync(message, CancellationToken.None).ConfigureAwait(false);
+        await AstroHttpBridge.BufferResponseAsync(message, CancellationToken.None).ConfigureAwait(false);
         var context = FakeHttp.Create(_services, "GET", "/products/1", _headers);
-        await AstroHttpBridge.WriteResponseAsync(context, response).ConfigureAwait(false);
-        return response.Body.Length;
+        await AstroHttpBridge.WriteResponseAsync(context, message).ConfigureAwait(false);
+        return (int)context.Response.ContentLength.GetValueOrDefault();
     }
 
     private HttpResponseMessage CreateResponseMessage()
