@@ -7,8 +7,8 @@ namespace AstroJint.Conformance.CoreUnits;
 /// <para>
 /// Differences from upstream: the pages are the real <c>not-found</c> and <c>not-found-custom</c> pages of the
 /// <c>app-errors</c> fixture, which has no <c>404.astro</c> of its own (the default 404 page of Astro is what answers the first
-/// one). The page that returns the empty 404 response sets the status text <c>Not found</c>, which the host does not carry
-/// to the client (GAP-UNITS-2), and which these tests do not look at.
+/// one). The page that returns the empty 404 response sets the status text <c>Not found</c>, which these tests do not look at
+/// (upstream's do not either).
 /// </para>
 /// </summary>
 [Trait("Upstream", "core-units/app/astro-response.test.ts")]

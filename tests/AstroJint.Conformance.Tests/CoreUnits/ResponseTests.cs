@@ -11,8 +11,9 @@ namespace AstroJint.Conformance.CoreUnits;
 /// case-insensitively, as the header names over HTTP are not guaranteed to keep the case.
 /// </para>
 /// <para>
-/// Gap: <c>Can set the statusText</c> (GAP-UNITS-2). The host copies the status code of the response that Astro produced to the
-/// ASP.NET Core response, but not its status text, so the client always gets the standard phrase (<c>Not Found</c> here).
+/// Status text: <c>Can set the statusText</c> reads the reason phrase of the HTTP response (<c>Oops</c>). It was skipped as
+/// GAP-UNITS-2 until the host carried <c>Response.statusText</c> to the client (fixed in 924feb7, for printable ASCII texts
+/// such as this one).
 /// </para>
 /// </summary>
 [Trait("Upstream", "core-units/app/response.test.ts")]
@@ -30,9 +31,7 @@ public class ResponseTests(SiteHost sites)
         Assert.Equal(404, (int)response.StatusCode);
     }
 
-    [Fact(
-        DisplayName = "Can set the statusText",
-        Skip = "GAP-UNITS-2: the host reads only the status code of the response Astro produced (AstroHttpBridge.ReadResponseAsync) and never sets the reason phrase, so Astro.response.statusText is lost and the client gets the standard phrase")]
+    [Fact(DisplayName = "Can set the statusText")]
     public async Task Page_SetsTheStatusText()
     {
         var site = await sites.GetAsync(Fixture);

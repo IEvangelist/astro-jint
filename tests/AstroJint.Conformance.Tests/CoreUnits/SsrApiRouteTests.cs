@@ -17,11 +17,13 @@ namespace AstroJint.Conformance.CoreUnits;
 /// browser (quoted <c>name</c> and <c>filename</c>), which is what <c>FormData</c> of Node writes.
 /// </para>
 /// <para>
-/// Gaps: the two tests that read the status text of an endpoint response (<c>tasty</c>, <c>not ok</c>) fail because the host
-/// does not carry the text to the client (GAP-UNITS-2). They keep every assertion of upstream and are skipped. The status
-/// code and the body of the same responses are covered by <c>can load a JSON API route, apart from its status text</c>
-/// (an extra test, not in upstream) and by <c>can POST to API routes</c>. A second extra test sends the same file as
-/// HttpClient's <c>MultipartFormDataContent</c> writes it, with <c>name=file</c> unquoted: Node reads it, Jint's strict
+/// Status text: <c>can load a JSON API route</c> (<c>tasty</c>) and <c>can read custom status text from API routes</c>
+/// (<c>not ok</c>) read the reason phrase of the HTTP response. They were skipped as GAP-UNITS-2 until the host carried
+/// <c>Response.statusText</c> to the client (fixed in 924feb7, for printable ASCII texts such as these).
+/// </para>
+/// <para>
+/// Gap: an extra test (not in upstream) sends the same file as HttpClient's <c>MultipartFormDataContent</c> writes it, with
+/// <c>name=file</c> unquoted: Node reads it, Jint's strict
 /// multipart parser (the WHATWG algorithm, which needs <c>name="</c>) throws a <c>TypeError</c> and the endpoint answers 500
 /// (GAP-UNITS-3). It is skipped; a fix belongs in Jint.WebApi's parser, or in the host by normalizing the part headers.
 /// </para>
@@ -53,9 +55,7 @@ public class SsrApiRouteTests(SiteHost sites)
         Assert.NotEqual("", response.Text);
     }
 
-    [Fact(
-        DisplayName = "can load a JSON API route",
-        Skip = "GAP-UNITS-2: the host does not carry Response.statusText of the endpoint to the client, so it gets the standard phrase OK instead of tasty")]
+    [Fact(DisplayName = "can load a JSON API route")]
     public async Task JsonRoute_KeepsItsStatusText()
     {
         var site = await sites.GetAsync(Fixture);
@@ -65,18 +65,6 @@ public class SsrApiRouteTests(SiteHost sites)
         Assert.Equal(200, (int)response.StatusCode);
         Assert.Equal("tasty", response.ReasonPhrase);
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        Assert.Equal(3, body.RootElement.GetArrayLength());
-    }
-
-    [Fact(DisplayName = "can load a JSON API route, apart from its status text")]
-    public async Task JsonRoute_AnswersWithTheItems()
-    {
-        var site = await sites.GetAsync(Fixture);
-
-        var response = await site.SendRawAsync("/food.json");
-
-        Assert.Equal(200, response.StatusCode);
-        using var body = JsonDocument.Parse(response.Text);
         Assert.Equal(3, body.RootElement.GetArrayLength());
     }
 
@@ -114,9 +102,7 @@ public class SsrApiRouteTests(SiteHost sites)
         Assert.Equal("ok", response.Text);
     }
 
-    [Fact(
-        DisplayName = "can read custom status text from API routes",
-        Skip = "GAP-UNITS-2: the host does not carry Response.statusText of the endpoint to the client, so it gets the standard phrase Bad Request instead of not ok")]
+    [Fact(DisplayName = "can read custom status text from API routes")]
     public async Task Endpoint_KeepsACustomStatusText()
     {
         var site = await sites.GetAsync(Fixture);
