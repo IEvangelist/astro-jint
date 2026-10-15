@@ -171,15 +171,28 @@ This is a prototype built on an interpreter. Know these before you plan on it:
 
 ## Performance
 
-From [spike 3](docs/spikes/03-engine-pool-performance.md), a small site on a 28-core Windows workstation:
+Numbers are from a 28-processor Windows workstation and the sample site. The method and every table are in
+[spike 4](docs/spikes/04-host-performance.md); [benchmarks/README.md](benchmarks/README.md) shows how to repeat them.
 
-- A warm engine renders a page in 0.3 to 0.9 ms (1,200 to 1,900 requests per second per engine) and allocates about
-  150 KB per request. Memory stays flat over 20,000 requests.
-- The first engine of a cold process needs about 0.5 s. Further engines take 30 to 70 ms because they share the parsed
-  modules (1.9 MB per extra engine instead of 12.5 MB). Sixteen engines in parallel are ready in about 0.3 s, which
-  `WarmUp` does in the background.
-- Use **Server GC** with more than about eight engines (the sample host does). With workstation GC, throughput peaks at
-  four to eight engines and then falls.
+- **Prerendered pages are served from memory.** The adapter spends about 0.35 microseconds and allocates 0.6 KB for one
+  (285 to 360 times less than opening the file for each request), and the sample host serves 29,000 to 34,000 of them
+  per second over 64 connections, up from 4,500 to 5,700. Kestrel and the loopback stack are the limit there, not the
+  adapter.
+- **On-demand pages cost what the interpreter costs.** A warm engine renders an API route in 0.25 ms and a page in 0.8
+  to 0.9 ms (130 to 300 KB of garbage per request); with 28 engines the sample host answers 6,000 to 9,000 of them per
+  second. The adapter's own share, translating the request and the response and handing out an engine, is a few
+  microseconds, and the bridge allocates the same few KB for a 2 KB and a 200 KB body. A page that does not need the
+  request should be prerendered: it serves four to five times as many requests per second and needs no engine.
+- **The memory limit per request** (`MemoryLimitBytes`) costs a few percent at most.
+- **Engines are cheap to add.** The first engine of a cold process needs about 0.5 s; further engines take 30 to 70 ms
+  because they share the parsed modules (1.9 MB per extra engine instead of 12.5 MB), and `WarmUp` creates them in the
+  background. Memory stays flat over 20,000 requests ([spike 3](docs/spikes/03-engine-pool-performance.md)).
+- **Use Server GC** with more than about eight engines (the sample host does). Without it the 28-engine host did five
+  times fewer on-demand requests per second and spent 80 percent of its time paused in the collector. Fewer GC heaps,
+  no GC affinity, concurrent GC off, pool sizes of 20 and 40, and `TieredPGO` off did not beat the defaults beyond the
+  noise; a 256 MB gen0 budget was 10 percent slower.
+- Compression and caching of on-demand pages are not part of the adapter. A reverse proxy or a CDN in front of the host
+  is the usual place for them.
 
 ## Repository layout
 
@@ -191,6 +204,8 @@ samples/HybridHost                 sample ASP.NET Core application that hosts it
 tests/AstroJint.AspNetCore.Tests   unit and integration tests of the library
 tests/AstroJint.Conformance.Tests  end-to-end suites ported from Astro's tests (fixtures: tests/conformance)
 tests/AstroJint.Sample.Tests       end-to-end tests of the sample site and host
+benchmarks/AstroJint.Benchmarks    BenchmarkDotNet suites: request bridge, static files, path resolution, rendering
+benchmarks/AstroJint.LoadTest      load generator that starts the sample host and reports throughput, latency and GC
 docs/conformance.md                which upstream tests are ported, and how they differ
 docs/spikes                        findings of the experiments behind the design
 spikes                             the throwaway code of those experiments
@@ -219,6 +234,11 @@ dotnet test --project tests/AstroJint.Conformance.Tests/AstroJint.Conformance.Te
   `dotnet test --project tests/AstroJint.Conformance.Tests/AstroJint.Conformance.Tests.csproj -- --filter-namespace AstroJint.Conformance.Node`.
 - If your machine's npm configuration points at a private registry, set `pnpm_config_registry=https://registry.npmjs.org/`
   before `pnpm install`, so that `pnpm-lock.yaml` never records its URLs.
+- The build runs the .NET analyzers (`AnalysisMode=Recommended`, code style enforced) and the library also turns on every
+  performance rule and treats diagnostics as errors, because it sits on the path of each request. Every project builds with
+  zero warnings; keep it that way.
+- Benchmarks and the load test are not tests and do not run in CI. See [benchmarks/README.md](benchmarks/README.md), for
+  example `dotnet run -c Release --project benchmarks/AstroJint.Benchmarks -- --filter "*Static*"`.
 
 ## Conformance
 
@@ -235,4 +255,7 @@ ported, adapted, a known gap or not applicable, and why.
 - Shims for Node.js built-ins (the way Nitro uses unenv), so that more npm packages run in the engine.
 - Image optimization on the .NET side.
 - Streaming responses.
+- Precompressed prerendered files (`br` and `gzip` made at build time, chosen by `Accept-Encoding` in the static fast
+  path), and a `byte[]` or `ReadOnlyMemory<byte>` overload of Jint's fetch-handler hosting, which would save a copy of
+  every request and response body.
 - Publish the packages, and choose a license.
