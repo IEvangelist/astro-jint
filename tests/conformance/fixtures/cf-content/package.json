@@ -1,0 +1,12 @@
+{
+  "name": "conformance-cf-content",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "dependencies": {
+    "@astrojs/prism": "^4.0.2",
+    "astro": "^7.3.6",
+    "astro-adapter-jint": "workspace:*",
+    "ms": "^2.1.3"
+  }
+}
