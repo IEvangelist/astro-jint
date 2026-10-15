@@ -2,7 +2,10 @@ import { builtinModules } from 'node:module';
 
 /** What is read of Rollup's output bundle: a chunk lists what it imports, bundled files and external modules alike. */
 export type OutputBundle = Readonly<
-  Record<string, { type: string; imports?: readonly string[]; dynamicImports?: readonly string[] }>
+  Record<
+    string,
+    { type: string; isEntry?: boolean; imports?: readonly string[]; dynamicImports?: readonly string[] }
+  >
 >;
 
 /** An import that the bundle leaves to its runtime, so it is not a file of the bundle. */
@@ -11,15 +14,21 @@ export interface UnresolvableImport {
   file: string;
   specifier: string;
   dynamic: boolean;
+  /**
+   * The file is linked when an engine starts: it is an entry or something that an entry imports statically. The other
+   * files are loaded by an `import()`, when a request needs them.
+   */
+  atStart: boolean;
 }
 
 /**
  * Finds what the server bundle imports from outside of itself. The host only loads relative imports of the files of
- * the bundle, so each of these fails in Jint: a static import when the bundle is linked, which keeps every engine from
- * starting, and an `import()` when it runs.
+ * the bundle, so each of these fails in Jint: a static import when its file is linked, which keeps every engine from
+ * starting if that is when the engine starts, and an `import()` when it runs.
  */
 export function findUnresolvableImports(bundle: OutputBundle): UnresolvableImport[] {
   const found: UnresolvableImport[] = [];
+  const atStart = filesLinkedAtStart(bundle);
 
   for (const [file, output] of Object.entries(bundle)) {
     if (output.type !== 'chunk') {
@@ -28,18 +37,37 @@ export function findUnresolvableImports(bundle: OutputBundle): UnresolvableImpor
 
     for (const specifier of output.imports ?? []) {
       if (!(specifier in bundle)) {
-        found.push({ file, specifier, dynamic: false });
+        found.push({ file, specifier, dynamic: false, atStart: atStart.has(file) });
       }
     }
 
     for (const specifier of output.dynamicImports ?? []) {
       if (!(specifier in bundle)) {
-        found.push({ file, specifier, dynamic: true });
+        found.push({ file, specifier, dynamic: true, atStart: atStart.has(file) });
       }
     }
   }
 
   return found;
+}
+
+/** The entries, and every file that is reached from one of them through static imports only. */
+function filesLinkedAtStart(bundle: OutputBundle): Set<string> {
+  const reached = new Set<string>();
+  const pending = Object.entries(bundle)
+    .filter(([, output]) => output.type === 'chunk' && output.isEntry)
+    .map(([file]) => file);
+
+  for (let file = pending.pop(); file !== undefined; file = pending.pop()) {
+    if (reached.has(file)) {
+      continue;
+    }
+
+    reached.add(file);
+    pending.push(...(bundle[file]?.imports ?? []).filter((specifier) => specifier in bundle));
+  }
+
+  return reached;
 }
 
 /** One warning for each file of the bundle that has such imports. `folder` is where the bundle is, in the output. */
@@ -56,9 +84,13 @@ export function describeUnresolvableImports(found: readonly UnresolvableImport[]
     const parts: string[] = [];
 
     if (statics.length > 0) {
+      const consequence = imports.some((item) => item.atStart)
+        ? 'so no engine can start: every on-demand route and server island answers 500.'
+        : 'so loading this file fails: the on-demand routes and server islands that need it answer 500.';
+
       parts.push(
-        `${location} imports ${statics.join(', ')}, which the host cannot load, so no engine can start: ` +
-          'every on-demand route and server island answers 500. Prerendered pages are files and are not affected.',
+        `${location} imports ${statics.join(', ')}, which the host cannot load, ${consequence} ` +
+          'Prerendered pages are files and are not affected.',
       );
     }
 

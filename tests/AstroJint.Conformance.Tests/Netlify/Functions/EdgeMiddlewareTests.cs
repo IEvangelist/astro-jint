@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 
 namespace AstroJint.Conformance.Netlify;
@@ -63,13 +64,23 @@ public class EdgeMiddlewareTests(SiteHost sites)
     {
         var site = await sites.GetAsync("netlify-node-builtin");
 
-        Assert.Contains("[astro-adapter-jint] server/entry.mjs imports 'node:https', which the host cannot load", site.BuildLog);
+        // The middleware is a chunk of the server bundle, named after a hash of its content. It is loaded by an import()
+        // when a request needs it, not when an engine starts.
+        Assert.Matches(
+            @"\[astro-adapter-jint\] server/chunks/_virtual_astro_middleware_[\w-]+\.mjs imports 'node:https', which the host cannot load, so loading this file fails",
+            site.BuildLog);
 
         using var response = await site.GetAsync("/");
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         Assert.Contains(site.Logs, entry =>
             entry.Level == LogLevel.Error
-            && entry.Exception?.ToString().Contains("Only relative imports of files in the server bundle are supported in module 'entry.mjs': 'node:https'", StringComparison.Ordinal) == true);
+            && Regex.IsMatch(
+                entry.Message,
+                @"Only relative imports of files in the server bundle are supported in module 'chunks/_virtual_astro_middleware_[\w-]+\.mjs': 'node:https'"));
+
+        using var prerendered = await site.GetAsync("/prerender");
+        Assert.Equal(HttpStatusCode.OK, prerendered.StatusCode);
+        Assert.Contains("<title>Middleware</title>", await prerendered.ReadTextAsync());
     }
 
     [Fact(DisplayName = "middlewareMode: classic: a build that imports nothing from outside of the server bundle has no such warning")]

@@ -39,6 +39,11 @@ Chunked output (e1) works too: relative dynamic `import("./chunks/...")` resolve
 `UseModules(serverDir)` with no extra shims, because e1 already has no `node:*` imports.
 The single-file bundle is still the recommended output (fewer files, one parse).
 
+> **Update (chunked output is the default now).** The adapter turns code splitting on for
+> the server build (see S1), because the single file broke content collections. Each file
+> is still parsed once for all engines, and a page chunk is parsed on its first request
+> instead of at engine creation.
+
 > **Update.** The adapter cannot guarantee a single file: a project that uses server
 > islands (or any dynamic `import()` in on-demand code) still gets `server/entry.mjs` plus
 > `server/chunks/*.mjs`. The host therefore no longer relies on `UseModules(<dir>)`. It

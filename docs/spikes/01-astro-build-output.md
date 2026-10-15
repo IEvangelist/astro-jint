@@ -33,6 +33,16 @@ on-demand code) are emitted as extra chunks, for example `server/chunks/Island_*
 loaded from `entry.mjs` with `() => import("./chunks/Island_*.mjs")`. The host handles a
 multi-file server folder (see S2).
 
+> **Update.** The adapter no longer builds e3 as is: it also sets
+> `environments.ssr.build.rolldownOptions.output.codeSplitting: true`, so the server build
+> is `entry.mjs` plus `chunks/*.mjs` (the layout of e1) with the dependencies bundled and
+> no `node:*` imports (the rest of e3). With the `webworker` target the dynamic imports
+> are folded into a single chunk, and Astro 7.3.8 then patches that chunk twice (the manifest
+> and the assets of content collection entries, in `manifestBuildPostHook` and
+> `contentAssetsBuildPostHook`), the second pass starting from the original code. The
+> manifest placeholder stayed in `entry.mjs` of every site whose on-demand page renders an
+> MDX entry (conformance gap GAP-CORE-1), and every request answered 500.
+
 ## What the default (chunked) bundle needs at runtime
 
 - `sharp` (326 KB chunk) pulls in `node:child_process`, `node:crypto`, `node:os`,

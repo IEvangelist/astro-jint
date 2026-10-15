@@ -1,0 +1,21 @@
+---
+import { getEntry, render } from 'astro:content';
+
+const { slug } = Astro.params;
+const entry = slug ? await getEntry('posts', slug) : undefined;
+
+if (!entry) {
+  return new Response(null, { status: 404 });
+}
+
+const { Content } = await render(entry);
+---
+
+<html lang="en">
+  <head>
+    <title>{entry.data.title}</title>
+  </head>
+  <body>
+    <article id="post"><Content /></article>
+  </body>
+</html>

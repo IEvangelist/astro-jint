@@ -96,15 +96,28 @@ export default function jint(options: JintAdapterOptions = {}): AstroIntegration
           updateConfig({
             vite: {
               define: { 'process.env.NODE_ENV': '"production"' },
-              // One self-contained module with no node:* imports, which is what Jint can evaluate.
+              // Every dependency is bundled and none imports a node:* module, which is what Jint can evaluate.
               ssr: { noExternal: true, target: 'webworker' },
-              // What is still imported from outside of that module is reported when the build is done.
+              // What is still imported from outside of the bundle is reported when the build is done.
               plugins: [reportUnresolvableImports((found) => unresolvableImports.push(...found))],
-              ...(options.minify && {
-                // Astro hard-codes `build.minify: false` for the server build, so the only way to
-                // minify it is through the output options of the ssr environment.
-                environments: { ssr: { build: { rolldownOptions: { output: { minify: true } } } } },
-              }),
+              environments: {
+                ssr: {
+                  build: {
+                    rolldownOptions: {
+                      output: {
+                        // The `webworker` target folds the dynamic imports of a single entry into one chunk. Astro then
+                        // injects the manifest and the assets of content collection entries into that chunk in two
+                        // passes, and the second starts from the original code, so the manifest placeholder stays in
+                        // the bundle and no request can be answered. Separate chunks are the layout Astro expects.
+                        codeSplitting: true,
+                        // Astro hard-codes `build.minify: false` for the server build, so the only way to
+                        // minify it is through the output options of the ssr environment.
+                        ...(options.minify && { minify: true }),
+                      },
+                    },
+                  },
+                },
+              },
             },
           });
         }

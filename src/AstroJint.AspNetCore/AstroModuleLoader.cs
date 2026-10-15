@@ -8,9 +8,9 @@ using Jint.Runtime.Modules;
 namespace AstroJint.AspNetCore;
 
 /// <summary>
-/// Loads the files of the Astro server bundle. The build is one file as long as nothing needs a second one, but Astro
-/// emits chunks next to the entry for server islands, and a dynamic <c>import()</c> in a page can too. Only relative
-/// imports of files below the folder of the entry are resolved, so the bundle cannot reach anything else.
+/// Loads the files of the Astro server bundle: the entry and the chunks that the build puts next to it (the pages, the middleware,
+/// the server islands, the session driver). Only relative imports of files below the folder of the entry are resolved, so the
+/// bundle cannot reach anything else.
 /// </summary>
 /// <remarks>
 /// Every file is parsed once and the result is shared by all engines, which still evaluate their own copy of it.
