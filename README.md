@@ -151,9 +151,11 @@ This is a prototype built on an interpreter. Know these before you plan on it:
   start, so every on-demand route answers 500 (prerendered pages keep working). Importing other files of the bundle by
   relative path is fine.
 - **Bodies are buffered.** Requests and responses are not streamed, because Jint cannot. Large uploads and downloads
-  belong in ASP.NET Core endpoints.
-- **Images are not resized.** With the passthrough service, `<Image />` and `getImage()` serve the original file. Remote
-  images need `FetchUrlFilter` and `image.domains`.
+  belong in ASP.NET Core endpoints. A request body is read in full before `RequestTimeout` starts, so slow senders are
+  held back by Kestrel's own limits (`MinRequestBodyDataRate`, `RequestHeadersTimeout`), which you should leave on.
+- **Images are not resized.** With the passthrough service, `<Image />` and `getImage()` serve the original file. The
+  image endpoint copies that file in memory several times per request, so keep the originals small. Remote images need
+  `FetchUrlFilter` and `image.domains`.
 - **Sessions** live in `IDistributedCache`, which is in memory unless you register another cache (Redis, SQL Server, ...),
   so they do not survive a restart or span instances by default. Astro marks the session cookie `Secure` in production,
   so visitors need HTTPS to keep their session.
