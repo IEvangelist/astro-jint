@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.HttpOverrides;
+
 namespace AstroJint.Conformance.Cloudflare;
 
 /// <summary>
@@ -7,6 +10,25 @@ namespace AstroJint.Conformance.Cloudflare;
 internal static class CfPages
 {
     public const string Fixture = "cf-pages";
+
+    /// <summary>
+    /// A site of the fixture that believes the header <c>CF-Connecting-IP</c>, as a site behind Cloudflare does: the stock
+    /// forwarded-headers middleware of ASP.NET Core takes the header for the forwarded-for header, any proxy is trusted and every
+    /// entry is processed, so that the first one is the one that stays. The classes that use it share the site.
+    /// </summary>
+    public static Task<ConformanceSite> BehindCloudflareAsync(SiteHost sites) =>
+        sites.GetAsync(Fixture, variant: "cf-connecting-ip", configureApp: app =>
+        {
+            var options = new ForwardedHeadersOptions
+            {
+                ForwardedHeaders = ForwardedHeaders.XForwardedFor,
+                ForwardedForHeaderName = "CF-Connecting-IP",
+                ForwardLimit = null,
+            };
+            options.KnownProxies.Clear();
+            options.KnownIPNetworks.Clear();
+            app.UseForwardedHeaders(options);
+        });
 
     /// <summary>Base <c>/blog/</c> and the redirects of the upstream fixture <c>with-base</c>.</summary>
     public static readonly object Base = new

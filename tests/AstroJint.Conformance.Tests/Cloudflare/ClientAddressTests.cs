@@ -1,7 +1,5 @@
 using System.Net;
 using System.Text.Json;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.HttpOverrides;
 
 namespace AstroJint.Conformance.Cloudflare;
 
@@ -28,19 +26,7 @@ public class ClientAddressTests(SiteHost sites)
     private const string Fixture = "cf-pages";
     private const string Loopback = "127.0.0.1";
 
-    private Task<ConformanceSite> StartBehindCloudflareAsync() =>
-        sites.GetAsync(Fixture, variant: "cf-connecting-ip", configureApp: app =>
-        {
-            var options = new ForwardedHeadersOptions
-            {
-                ForwardedHeaders = ForwardedHeaders.XForwardedFor,
-                ForwardedForHeaderName = "CF-Connecting-IP",
-                ForwardLimit = null,
-            };
-            options.KnownProxies.Clear();
-            options.KnownIPNetworks.Clear();
-            app.UseForwardedHeaders(options);
-        });
+    private Task<ConformanceSite> StartBehindCloudflareAsync() => CfPages.BehindCloudflareAsync(sites);
 
     private static async Task<string?> ClientAddressOfEndpointAsync(ConformanceSite site, string header)
     {
