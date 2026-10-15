@@ -1,0 +1,11 @@
+{
+  "name": "conformance-core-ssr-partytown",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "dependencies": {
+    "@astrojs/partytown": "^2.1.8",
+    "astro": "^7.3.6",
+    "astro-adapter-jint": "workspace:*"
+  }
+}

@@ -41,6 +41,10 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
 | `serializeManifest.test.ts` | 5 | 5 | 0 | 0 | 0 | `Core\SerializeManifestTests.cs` | Fixtures `core-astro-manifest` (also holds the page of `astro-manifest-client-script`) and `core-astro-manifest-invalid`. |
 | `logger.test.ts` | 2 | 0 | 2 | 0 | 0 | `Core\LoggerTests.cs` | Fixture `core-ssr-assets` (its `src/logger.mjs` logs a marker). |
 | `runtime-logger.test.ts` | 6 | 0 | 6 | 0 | 0 | `Core\RuntimeLoggerTests.cs` | Fixture `core-runtime-logger`, which has one endpoint that upstream does not have (`src/pages/messages.json.ts`). |
+| `ssr-large-array.test.ts` | 1 | 0 | 0 | 1 | 0 | `Core\SsrLargeArrayTests.cs` | Fixture `core-large-array` (`@astrojs/solid-js`); the gap is GAP-CORE-3 (skipped); the class has one more test than upstream (with the `worker` resolve condition, passes). |
+| `ssr-partytown.test.ts` | 2 | 1 | 1 | 0 | 0 | `Core\SsrPartytownTests.cs` | Fixture `core-ssr-partytown` (`@astrojs/partytown`). |
+| `ssr-renderers-static-vue.test.ts` | 2 | 1 | 1 | 0 | 0 | `Core\SsrRenderersStaticVueTests.cs` | Fixture `core-ssr-renderers-static-vue` (`@astrojs/vue`); one more test than upstream (the control with an on-demand page). |
+| `before-hydration.test.ts` | 5 | 5 | 0 | 0 | 0 | `Core\BeforeHydrationTests.cs` | Fixture `core-before-hydration` (`@astrojs/preact`); the four builds of upstream are JSON config variants (`output`, `conformance.beforeHydration`). |
 
 ## Differences
 
@@ -202,6 +206,28 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
   out the `missing-in-handler` warning of its own request). The state is per engine, so the sites run one engine (`PoolSize = 1`); the four tests
   about the bootstrap each start a host of their own (a variant each) and make the first request themselves. The build runs at the default `info`
   log level, not upstream's `warn` (`logLevel` is an inline flag the harness cannot set); the tests select messages by their text, as upstream does.
+- `ssr-large-array.test.ts`: the only `it` is a gap (`GAP-CORE-3`): a Solid island renders no HTML with the default configuration of this adapter.
+  The test has the upstream assertions and one more, not asserted upstream: the `props` attribute of the island holds the whole prop (`[1, [...]]`,
+  600 items, each with `foo` = `bar`). A second test, which upstream does not have, runs the same checks with
+  `vite.ssr.resolve.conditions` set to `worker`, `module`, `browser` and `development|production` (a JSON config variant) and passes.
+- `ssr-partytown.test.ts`: `The partytown scripts are in the manifest` looks for `/~partytown/partytown-sw.js` in `app.manifest.assets`, which nothing
+  over HTTP can read. The manifest lists the files that the build puts in `dist/client` so that a request for one never reaches a route, so the port
+  requests every file of `dist/client/~partytown` (the service worker among them) and compares the bytes with the file on disk.
+- `ssr-renderers-static-vue.test.ts`: `does not include SSR renderers when only endpoints are dynamic` asserts `app.manifest.renderers` is empty, an
+  in-process object. The manifest is part of the server bundle, where the list is written as `var renderers = [];` in the region of the
+  `virtual:astro:renderers` module of `server/entry.mjs`, and the port asserts exactly that (a regular expression on the file) and that no file of the
+  server build contains `createSSRApp`, the server renderer of Vue (`@astrojs/vue` as plain text is in the bundle either way, so it cannot be the
+  negative marker). The page that makes the renderer necessary is the control, which upstream does not have: with the JSON config
+  `conformance.onDemandPage` the fixture config sets `route.prerender = false` in `astro:route:setup`, and the same two checks then see the renderer
+  (a non-empty list with `@astrojs/vue/server.js`, `createSSRApp` in `entry.mjs` and in the chunk `server-renderer_*.mjs`), `client/index.html` is
+  gone and `GET /` renders the component in the engine.
+- `before-hydration.test.ts`: upstream builds with no adapter for SSG (the page is read from the output) and with the test adapter for SSR. The four
+  builds are JSON config variants of one fixture here: `output: 'static'` or `'server'`, each with and without `conformance.beforeHydration`, which
+  makes the fixture config add the inline `@test/before-hydration` integration (`injectScript('before-hydration', "import '/src/scripts/global.js';")`).
+  The SSG ones use this adapter with `output: 'static'`, where the page is prerendered into `dist/client`, and are requested over HTTP (ported). The
+  chunk the `before-hydration-url` names is `/_astro/astro_scripts/before-hydration.js.<hash>.js`, a nested path under `_astro`; the tests check that
+  the file exists in the output and that the host serves it as `text/javascript` (the second part is not asserted upstream). The tests where the
+  integration is not used also check that the island is there (the page was not lost), which upstream does not.
 
 ## Gaps
 
@@ -228,6 +254,17 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
   `docs/spikes/03-engine-pool-performance.md`) and the way the engine makes the `Request` (its `signal` is not aborted by that token). A user of
   `request.signal` (a streaming endpoint that must release a resource) never learns that the client left. Reproduce: run the three tests
   without their `Skip` (the constant `Gap` of the class).
+- `GAP-CORE-3`: a Solid island renders no HTML on the server. The adapter sets `vite.ssr.target: 'webworker'`, and for that target Vite 8 resolves
+  the packages of the server build with the client conditions (`module`, `browser` and `development|production`, no `worker`), so `solid-js/web`
+  is its browser build, where `renderToString` and `renderToStringAsync` only log `... is not supported in the browser, returning undefined` (both
+  lines are in the host log, category `AstroJint.Console`). The page answers 200 but the island is the text `undefined` followed by an `astro-island`
+  with no server markup and without its slot content (the `h1` of `core-large-array` is missing; the 600 objects of the prop are in `props`). The
+  `exports` of `solid-js` have a `worker` condition, listed before `browser`, that points at the server build, and the non-upstream test
+  `LargeIslandProp_WithTheWorkerCondition_IsTheRightHtml` shows that the engine renders the page whole (viewport, icon, `main`, one island, the `h1`
+  and the 600 objects) when `vite.ssr.resolve.conditions` has `worker`. A user of `@astrojs/solid-js` with this adapter has to set that option
+  themselves today. Suspected area: the `vite.ssr` block of `astro:config:setup` in `packages/astro-adapter-jint/src/index.ts`, which could
+  add the `worker` condition. Skipped test: `SsrLargeArrayTests.LargeIslandProp_ArrayBufferBody_IsTheRightHtml`. Reproduce: run it without its
+  `Skip`.
 
 ## Not applicable
 

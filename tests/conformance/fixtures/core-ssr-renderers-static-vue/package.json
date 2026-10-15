@@ -1,0 +1,12 @@
+{
+  "name": "conformance-core-ssr-renderers-static-vue",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "dependencies": {
+    "@astrojs/vue": "^7.0.3",
+    "astro": "^7.3.6",
+    "astro-adapter-jint": "workspace:*",
+    "vue": "^3.5.43"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "conformance-core-large-array",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "dependencies": {
+    "@astrojs/solid-js": "^7.0.2",
+    "astro": "^7.3.6",
+    "astro-adapter-jint": "workspace:*",
+    "solid-js": "^1.9.15"
+  }
+}

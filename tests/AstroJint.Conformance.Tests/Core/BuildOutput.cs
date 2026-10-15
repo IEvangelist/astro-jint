@@ -11,6 +11,14 @@ internal static partial class BuildOutput
             .Where(file => Path.GetExtension(file) is ".mjs" or ".js" or ".cjs")
             .Select(File.ReadAllText);
 
+    /// <summary>The text of <c>server/entry.mjs</c> and of every chunk of the server build, by path relative to <c>server</c>.</summary>
+    public static IReadOnlyDictionary<string, string> ReadServerScripts(ConformanceSite site)
+    {
+        var server = Path.Combine(site.DistPath, "server");
+        return Directory.EnumerateFiles(server, "*.mjs", SearchOption.AllDirectories)
+            .ToDictionary(file => Path.GetRelativePath(server, file), File.ReadAllText);
+    }
+
     /// <summary>
     /// Whether the build bundled unstorage, whose top-level export is <c>createStorage</c>, and the session runtime, which is
     /// the <c>AstroSession</c> class.

@@ -1,0 +1,12 @@
+{
+  "name": "conformance-core-before-hydration",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "dependencies": {
+    "@astrojs/preact": "^6.0.6",
+    "astro": "^7.3.6",
+    "astro-adapter-jint": "workspace:*",
+    "preact": "^10.29.8"
+  }
+}

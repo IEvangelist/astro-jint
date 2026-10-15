@@ -422,6 +422,21 @@ importers:
         specifier: workspace:*
         version: link:../../../../packages/astro-adapter-jint
 
+  tests/conformance/fixtures/core-before-hydration:
+    dependencies:
+      '@astrojs/preact':
+        specifier: ^6.0.6
+        version: 6.0.6(@babel/core@7.29.7)(@types/node@24.19.2)(jiti@2.7.0)(preact@10.29.8)(yaml@2.9.1)
+      astro:
+        specifier: ^7.3.6
+        version: 7.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1)
+      astro-adapter-jint:
+        specifier: workspace:*
+        version: link:../../../../packages/astro-adapter-jint
+      preact:
+        specifier: ^10.29.8
+        version: 10.29.8(preact-render-to-string@6.8.0)
+
   tests/conformance/fixtures/core-cache-memory-query:
     dependencies:
       astro:
@@ -535,6 +550,21 @@ importers:
       astro-adapter-jint:
         specifier: workspace:*
         version: link:../../../../packages/astro-adapter-jint
+
+  tests/conformance/fixtures/core-large-array:
+    dependencies:
+      '@astrojs/solid-js':
+        specifier: ^7.0.2
+        version: 7.0.2(@types/node@24.19.2)(jiti@2.7.0)(solid-js@1.9.17)(yaml@2.9.1)
+      astro:
+        specifier: ^7.3.6
+        version: 7.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1)
+      astro-adapter-jint:
+        specifier: workspace:*
+        version: link:../../../../packages/astro-adapter-jint
+      solid-js:
+        specifier: ^1.9.15
+        version: 1.9.17
 
   tests/conformance/fixtures/core-live-loaders:
     dependencies:
@@ -674,6 +704,18 @@ importers:
         specifier: workspace:*
         version: link:../../../../packages/astro-adapter-jint
 
+  tests/conformance/fixtures/core-ssr-partytown:
+    dependencies:
+      '@astrojs/partytown':
+        specifier: ^2.1.8
+        version: 2.1.8
+      astro:
+        specifier: ^7.3.6
+        version: 7.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1)
+      astro-adapter-jint:
+        specifier: workspace:*
+        version: link:../../../../packages/astro-adapter-jint
+
   tests/conformance/fixtures/core-ssr-prerender:
     dependencies:
       astro:
@@ -691,6 +733,21 @@ importers:
       astro-adapter-jint:
         specifier: workspace:*
         version: link:../../../../packages/astro-adapter-jint
+
+  tests/conformance/fixtures/core-ssr-renderers-static-vue:
+    dependencies:
+      '@astrojs/vue':
+        specifier: ^7.0.3
+        version: 7.0.3(@types/node@24.19.2)(astro@7.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))(jiti@2.7.0)(vue@3.5.44(typescript@7.0.2))(yaml@2.9.1)
+      astro:
+        specifier: ^7.3.6
+        version: 7.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1)
+      astro-adapter-jint:
+        specifier: workspace:*
+        version: link:../../../../packages/astro-adapter-jint
+      vue:
+        specifier: ^3.5.43
+        version: 3.5.44(typescript@7.0.2)
 
   tests/conformance/fixtures/core-ssr-request:
     dependencies:
@@ -1042,6 +1099,9 @@ packages:
     peerDependenciesMeta:
       '@astrojs/markdown-remark':
         optional: true
+
+  '@astrojs/partytown@2.1.8':
+    resolution: {integrity: sha512-iCRNNPqvdQEORyAYC8jN8nTCN2wW66WS+Pft2fhqq52cj3GcWvzlAZlyfjtpCeiEYI0op6u5OtWqqItiS7INDA==}
 
   '@astrojs/preact@6.0.6':
     resolution: {integrity: sha512-Z8GGzW0DAUdy+EtQ+otGtzDLMuYXUueRN5MM8UF4yB8OUaxnVIHF5er1dNCGKoxlnM/8Y2B8+ub+YadofKSSJA==}
@@ -1571,6 +1631,11 @@ packages:
     peerDependencies:
       preact: ^10.4.0 || ^11.0.0-0
       vite: '>=2.0.0'
+
+  '@qwik.dev/partytown@0.14.5':
+    resolution: {integrity: sha512-DxVGNgz2oWZvNT76LmMwxSroN1+r8rHqH/55fLGpO7tiVbYtC8PoXICyS1vGwL2mvmvfQhccqbudKrDnQO1mgg==}
+    engines: {node: '>=18.0.0'}
+    hasBin: true
 
   '@rolldown/binding-android-arm-eabi@1.2.13':
     resolution: {integrity: sha512-Vu/NICrgdRvUOeaJZIyB2FP63s6fO/4ud5l8dXmxDx9yDyn+mN0y+gsvsVviSli+T361Aqo0h46EuMoobrwawA==}
@@ -3420,6 +3485,11 @@ snapshots:
       astro: 7.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1)
       es-module-lexer: 3.0.3
 
+  '@astrojs/partytown@2.1.8':
+    dependencies:
+      '@qwik.dev/partytown': 0.14.5
+      mrmime: 2.0.1
+
   '@astrojs/preact@6.0.6(@babel/core@7.29.7)(@types/node@24.19.2)(jiti@2.7.0)(preact@10.29.8)(yaml@2.9.1)':
     dependencies:
       '@astrojs/internal-helpers': 0.12.0
@@ -4099,6 +4169,8 @@ snapshots:
       vite: 8.3.4(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1)
     transitivePeerDependencies:
       - supports-color
+
+  '@qwik.dev/partytown@0.14.5': {}
 
   '@rolldown/binding-android-arm-eabi@1.2.13':
     optional: true
