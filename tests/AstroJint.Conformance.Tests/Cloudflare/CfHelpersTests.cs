@@ -6,12 +6,16 @@ namespace AstroJint.Conformance.Cloudflare;
 /// <summary>
 /// Port of <c>packages/integrations/cloudflare/test/cf-helpers.test.ts</c>. The upstream file calls the helpers of the adapter
 /// (<c>dist/utils/cf-helpers.js</c>) with mock objects. Most of them have nothing to do here; the two that do are asked of the
-/// host through the pages of the shared fixture <c>cf-pages</c>.
+/// host through the pages of the shared fixtures <c>cf-pages</c> and <c>cf-content</c>.
 /// <list type="bullet">
 /// <item><c>getClientAddress</c>: the four tests ask the endpoint <c>/api/address</c> of a site that believes the header
 /// <c>CF-Connecting-IP</c> (see <see cref="CfPages.BehindCloudflareAsync"/>) for <c>clientAddress</c>. Where the helper returns
 /// <c>undefined</c> (no header, a header that is not an IP address) the host has the address of the connection to fall back
 /// on and answers that, <c>127.0.0.1</c>; it is never undefined, and a payload in the header is not in the response.</item>
+/// <item><c>createErrorPageFetch</c>, "returns a function that fetches from ASSETS": the function is what lets Astro answer
+/// an unknown route with the prerendered 404 page. The test asks the host for a route that does not exist and expects the
+/// status 404 and the body of the prerendered page <c>404.astro</c> of <c>cf-content</c>, which the host reads from
+/// <c>client/404.html</c>.</item>
 /// <item>Not applicable: <c>createLocals</c> (the <c>cfContext</c> of Cloudflare and its <c>runtime</c> migration errors),
 /// <c>matchStaticAsset</c> and <c>fallbackToAssets</c> (the ASSETS binding; the host serves the static files itself, which the
 /// tests of the static output cover) and the test of <c>createErrorPageFetch</c> that strips <c>.html</c> from the URL.</item>
@@ -65,5 +69,16 @@ public class CfHelpersTests(SiteHost sites)
         var site = await CfPages.BehindCloudflareAsync(sites);
 
         Assert.Equal(Loopback, await ClientAddressAsync(site, "<script>alert(1)</script>"));
+    }
+
+    [Fact(DisplayName = "returns a function that fetches from ASSETS")]
+    public async Task CreateErrorPageFetch_ServesThePrerenderedErrorPage()
+    {
+        var site = await sites.GetAsync(CfContent.Fixture);
+
+        using var response = await site.GetAsync("/no-such-page");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Contains("Prerendered not found", await response.ReadTextAsync());
     }
 }
