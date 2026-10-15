@@ -9,12 +9,14 @@ namespace AstroJint.Conformance.Cloudflare;
 /// came to, and look in the server bundle for the driver that is wired in.
 /// <list type="bullet">
 /// <item>"wires no session driver when sessions are disabled": with <c>session: false</c> the page has no session (the count
-/// stays 1 whatever cookie it gets and none is set) and the host's driver is not in the bundle. The log line "Enabling sessions"
-/// of the build is not asserted: the harness keeps the output of a build only when it fails.</item>
+/// stays 1 whatever cookie it gets and none is set) and the host's driver is not in the bundle. The log of the build has no
+/// "Enabling sessions" line, as upstream.</item>
 /// <item>"does not override a driver the user configured": a driver of the fixture (<c>src/session-driver.mjs</c>, which logs
-/// what it does) is the one that stores the session, and the host's driver is not in the bundle.</item>
+/// what it does) is the one that stores the session, and the host's driver is not in the bundle. The log of the build has no
+/// "Enabling sessions" line, as upstream.</item>
 /// <item>"still wires Cloudflare KV by default": the host's driver (its <c>IDistributedCache</c>, not a KV namespace) keeps
-/// the count of a session over two requests.</item>
+/// the count of a session over two requests, and the log of the build announces it ("Enabling sessions with the distributed
+/// cache of the ASP.NET Core host", where the Cloudflare adapter says "with Cloudflare KV").</item>
 /// <item>Not applicable: the two tests of <c>cloudflareConfigCustomizer</c>, which provisions the KV namespace of the
 /// session driver in <c>wrangler.json</c>.</item>
 /// </list>
@@ -42,6 +44,7 @@ public class SessionFalseTests(SiteHost sites)
 
         Assert.False(BundleContains(site, "sessionGet"), "the host's session driver is in the server bundle");
         Assert.False(BundleContains(site, "createStorage"), "the session runtime is in the server bundle");
+        Assert.DoesNotContain("Enabling sessions", site.BuildLog);
     }
 
     [Fact(DisplayName = "does not override a driver the user configured")]
@@ -57,6 +60,7 @@ public class SessionFalseTests(SiteHost sites)
         Assert.Contains(site.Logs, entry => entry.Message.Contains("conformance-driver setItem"));
         Assert.True(BundleContains(site, "conformance-driver"), "the driver of the user is not in the server bundle");
         Assert.False(BundleContains(site, "sessionGet"), "the host's session driver is in the server bundle");
+        Assert.DoesNotContain("Enabling sessions", site.BuildLog);
     }
 
     [Fact(DisplayName = "still wires Cloudflare KV by default")]
@@ -74,6 +78,7 @@ public class SessionFalseTests(SiteHost sites)
 
         Assert.True(BundleContains(site, "sessionGet"), "the host's session driver is not in the server bundle");
         Assert.DoesNotContain(site.Logs, entry => entry.Message.Contains("conformance-driver"));
+        Assert.Contains("Enabling sessions with the distributed cache of the ASP.NET Core host", site.BuildLog);
     }
 
     private static bool BundleContains(ConformanceSite site, string text) =>
