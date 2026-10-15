@@ -57,4 +57,6 @@ internal sealed class Probe(JsonElement cases)
     public bool Bool(string key) => this[key].GetBoolean();
 
     public string[] Strings(string key) => [.. this[key].EnumerateArray().Select(item => item.GetString() ?? "")];
+
+    public void AssertStrings(string key, params string[] expected) => Assert.Equal(expected, Strings(key));
 }

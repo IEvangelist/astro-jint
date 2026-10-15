@@ -1,0 +1,4 @@
+---
+const locals = Astro.locals as { renderOrder?: string[] };
+---
+<p id="rendered-order">Rendered order: {() => (locals.renderOrder ?? []).join(', ')}</p>

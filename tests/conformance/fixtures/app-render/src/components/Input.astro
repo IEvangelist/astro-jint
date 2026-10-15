@@ -1,0 +1,9 @@
+---
+// Picks between input, select and textarea from the `type` prop, so that the tag name is a runtime string value (#2062).
+const { type: initialType, ...rest } = Astro.props;
+const isSelect = /^select$/i.test(initialType);
+const isTextarea = /^textarea$/i.test(initialType);
+const Control = isSelect ? 'select' : isTextarea ? 'textarea' : 'input';
+if (Control === 'input' && initialType) rest.type = initialType;
+---
+<Control {...rest}><slot /></Control>

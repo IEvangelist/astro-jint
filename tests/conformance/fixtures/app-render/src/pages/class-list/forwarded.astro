@@ -1,0 +1,13 @@
+---
+import SpreadPropsSpan from '../../components/SpreadPropsSpan.astro';
+---
+<html><body>
+<SpreadPropsSpan class="test control" />
+<SpreadPropsSpan class:list="test expression" />
+<SpreadPropsSpan class:list={{ test: true, true: true, false: false }} />
+<SpreadPropsSpan class:list={{ test: 1, truthy: '0', noshow1: 0, noshow2: '', noshow3: null, noshow4: undefined }} />
+<SpreadPropsSpan class:list={['test', 'set']} />
+<SpreadPropsSpan class:list={['hello goodbye', { hello: true, world: true }, ['hello', 'friend']]} />
+<SpreadPropsSpan class:list={['foo', false && 'bar', true && 'baz']} />
+<SpreadPropsSpan class:list={[false && 'empty']} />
+</body></html>

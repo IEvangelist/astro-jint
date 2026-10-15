@@ -1,0 +1,9 @@
+---
+const slugs = ['one', 'two', 'three'];
+---
+<html><body>
+<h1>Hello world!</h1>
+<div class="author"></div>
+{slugs.map((slug) => <a href={`/post/${slug}`}>{slug}</a>)}
+<ul><Fragment><li id="one">One</li></Fragment></ul>
+</body></html>

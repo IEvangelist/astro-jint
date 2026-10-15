@@ -1,0 +1,5 @@
+---
+const locals = Astro.locals as { renderOrder?: string[] };
+(locals.renderOrder ??= []).push('B');
+---
+<p>B</p><slot />
