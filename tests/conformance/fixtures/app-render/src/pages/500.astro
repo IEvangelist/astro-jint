@@ -2,9 +2,11 @@
 const { error } = Astro.props;
 
 // The custom-500 fixture of upstream has a 500 page that shows the error and another one that throws. This is both: it
-// shows the error of throws.astro and throws for every other one, so that the other pages of the fixture that fail (throws-other,
-// not-response, a missing client address, a failed streaming render) answer with the bare empty 500 of a failing 500 page.
-if (error !== 'some error') {
+// shows the error of throws.astro and the 'boom' of sync-expansion/twice.astro, and throws for every other one, so that the other
+// pages of the fixture that fail (throws-other, not-response, a missing client address, a failed streaming render) answer with the
+// bare empty 500 of a failing 500 page.
+const shown = error === 'some error' || (error instanceof Error && String(error.message).includes('boom'));
+if (!shown) {
   throw 'custom 500 fail';
 }
 ---

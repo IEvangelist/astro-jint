@@ -1,0 +1,4 @@
+---
+const slotted = await Astro.slots.render('default');
+---
+<html><head><title>Normal head stuff</title></head><body><Fragment set:html={slotted} /></body></html>

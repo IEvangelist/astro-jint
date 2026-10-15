@@ -1,0 +1,10 @@
+---
+const fakeResponse = new Response('<p id="fetched-html">works</p>', {
+  headers: { 'Content-Type': 'text/html' },
+});
+---
+<html>
+  <body>
+    <Fragment set:html={fakeResponse} />
+  </body>
+</html>

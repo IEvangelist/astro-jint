@@ -1,0 +1,34 @@
+---
+import Title from '../../components/directives/Title.astro';
+const foo = 'bar';
+const bg = 'white';
+const fg = 'black';
+const bar = '<script>bar</script>';
+const undef = undefined;
+---
+<html>
+  <head>
+    <style define:vars={{ bg, fg }}>
+      html { background: var(--bg); color: var(--fg); }
+    </style>
+  </head>
+  <body>
+    <script define:vars={{ foo }}>
+      console.log(foo);
+    </script>
+    <script define:vars={{ foo }}>
+      console.log(foo);
+    </script>
+    <script define:vars={{ 'dash-case': foo }}>
+      console.log(foo);
+    </script>
+    <script define:vars={{ bar }}>
+      console.log(bar);
+    </script>
+    <script define:vars={{ undef }}>
+      console.log(undef);
+    </script>
+    <div id="compound-style" style={{ color: 'var(--fg)' }}></div>
+    <Title />
+  </body>
+</html>

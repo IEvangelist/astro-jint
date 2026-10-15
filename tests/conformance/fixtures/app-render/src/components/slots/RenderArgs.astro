@@ -1,0 +1,4 @@
+---
+const { id, text } = Astro.props;
+---
+<div id={id} set:html={Astro.slots.render('default', [text])} />

@@ -1,0 +1,15 @@
+---
+import ConditionalSlottedCallback from '../../components/slots/ConditionalSlottedCallback.astro';
+---
+<html>
+  <head></head>
+  <body>
+    <ConditionalSlottedCallback>
+      {true && (
+        <fragment slot="block">
+          {({ test }) => <div id="conditional-block">Block: {test}</div>}
+        </fragment>
+      )}
+    </ConditionalSlottedCallback>
+  </body>
+</html>

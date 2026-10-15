@@ -60,3 +60,17 @@ internal sealed class Probe(JsonElement cases)
 
     public void AssertStrings(string key, params string[] expected) => Assert.Equal(expected, Strings(key));
 }
+
+/// <summary>Reads the members of the object that a case of a probe answered.</summary>
+internal static class ProbeJson
+{
+    public static string Str(this JsonElement element, string property) => element.GetProperty(property).GetString() ?? "";
+
+    public static bool Bool(this JsonElement element, string property) => element.GetProperty(property).GetBoolean();
+
+    public static string[] Strings(this JsonElement element, string property) =>
+        [.. element.GetProperty(property).EnumerateArray().Select(item => item.GetString() ?? "")];
+
+    /// <summary>The element as compact JSON, to compare an object or an array with a literal.</summary>
+    public static string Compact(this JsonElement element) => JsonSerializer.Serialize(element);
+}
