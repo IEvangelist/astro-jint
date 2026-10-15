@@ -1,0 +1,7 @@
+---
+// The routes of a prerendered dynamic page need their paths.
+export function getStaticPaths() {
+  return [{ params: { a_prebuild: 'prebuilt' } }];
+}
+---
+<h1>Prebuilt</h1>

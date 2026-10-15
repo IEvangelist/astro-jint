@@ -1,0 +1,5 @@
+---
+const error = Astro.props.error;
+const message = error instanceof Error ? error.message : String(error ?? '');
+---
+<h1>my custom 500</h1><pre>{message}</pre>
