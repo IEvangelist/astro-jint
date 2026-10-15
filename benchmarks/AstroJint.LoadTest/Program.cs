@@ -16,7 +16,11 @@ catch (ArgumentException ex)
 
 try
 {
-    using var server = options.ServerProcessId is { } pid ? Process.GetProcessById(pid) : null;
+    using var host = options.LaunchPath is { } launchPath
+        ? await LaunchedHost.StartAsync(launchPath, options.Url, options.HostEnvironment)
+        : null;
+    using var attached = options.ServerProcessId is { } pid ? Process.GetProcessById(pid) : null;
+    var server = host?.Process ?? attached;
     var scenarios = options.Scenario == "all" ? Scenarios.Names : [options.Scenario];
 
     Console.WriteLine(Report.Header(withUsage: server is not null, withGc: options.GcStatsPath is not null));
