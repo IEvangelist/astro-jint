@@ -1,0 +1,9 @@
+---
+const promise = new Promise((resolve) => setTimeout(() => resolve('resolved'), 50));
+---
+<html><head><title>Fragment Streaming</title></head><body>
+<Fragment>
+<p id="sync-in-fragment">sync content</p>
+{promise.then(() => <p id="async-in-fragment">async content</p>)}
+</Fragment>
+</body></html>

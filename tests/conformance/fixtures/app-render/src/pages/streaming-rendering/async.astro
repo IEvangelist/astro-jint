@@ -1,0 +1,5 @@
+---
+import Slow from '../../components/Slow.astro';
+const ids = [0, 1, 2, 3, 4];
+---
+<html><body>{ids.map((id) => <Slow id={id} delay={25} />)}</body></html>

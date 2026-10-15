@@ -1,0 +1,15 @@
+<html><head><title>Head Content Test</title></head><body>
+<h1>Head Content Test</h1>
+<section id="inline-styles">
+<style is:inline>.inline-test{color:green}</style>
+<p class="inline-test">Inline styles test</p>
+</section>
+<section id="inline-scripts">
+<script is:inline>console.log('Inline script executed')</script>
+</section>
+<section id="component-head">
+<div class="with-head"><h3>Component with Head Content</h3><p>This component adds content to the head</p></div>
+<style is:inline>.with-head{border:1px solid blue}</style>
+<script is:inline>console.log('WithHead script loaded')</script>
+</section>
+</body></html>

@@ -1,0 +1,14 @@
+---
+import Child from '../components/Child.astro';
+import RoutePatterns from '../components/RoutePatterns.astro';
+---
+<html>
+  <head><title>Test</title></head>
+  <body>
+    <div id="pathname">{Astro.url.pathname}</div>
+    <div id="searchparams">{JSON.stringify(Astro.url.searchParams)}</div>
+    <a id="site" href={Astro.site?.href}>Home</a>
+    <Child />
+    <RoutePatterns />
+  </body>
+</html>

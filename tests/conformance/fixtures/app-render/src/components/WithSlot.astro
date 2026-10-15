@@ -1,0 +1,5 @@
+---
+const { title } = Astro.props;
+const slotContent = await Astro.slots.render('default');
+---
+<div class="with-slot"><h2>{title}</h2><div class="slot-content" set:html={slotContent} /></div>

@@ -1,0 +1,7 @@
+---
+const { id, delay = 20 } = Astro.props;
+const start = Date.now();
+await new Promise((resolve) => setTimeout(resolve, delay));
+const end = Date.now();
+---
+<div class="slow" data-start={start} data-end={end} data-id={id}>slow {id}</div>

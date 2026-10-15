@@ -1,0 +1,11 @@
+---
+const htmlContent = '<strong>Bold text from set:html</strong>';
+const textContent = '<em>This should be escaped</em>';
+---
+<html><head><title>Astro Directives Test</title></head><body>
+<h1>Directives Test</h1>
+<section id="set-html"><div set:html={htmlContent} /></section>
+<section id="set-text"><div set:text={textContent} /></section>
+<section id="class-list"><div class:list={['foo', 'bar', { baz: true, qux: false }]}>Class List Test</div></section>
+<section id="inline-style"><div style={{ color: 'red', fontSize: '20px' }}>Styled Text</div></section>
+</body></html>

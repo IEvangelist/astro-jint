@@ -1,0 +1,6 @@
+---
+const foo: any = { bar: null };
+// Both expressions of the original fixture throw before any body is written.
+foo.bar.baz.length;
+---
+<html><body>should not reach</body></html>

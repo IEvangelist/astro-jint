@@ -1,0 +1,10 @@
+---
+import AsyncChild from '../../components/AsyncChild.astro';
+const ids = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+---
+<html><head><title>Testing</title></head><body>
+<header><h1>My Site</h1></header>
+<ul>
+{ids.map((id) => <AsyncChild id={id} />)}
+</ul>
+</body></html>
