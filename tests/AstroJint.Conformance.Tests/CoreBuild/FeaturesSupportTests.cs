@@ -9,8 +9,9 @@ namespace AstroJint.Conformance.CoreBuild;
 /// and expects an error about the features <c>build.middleware</c> and <c>build.split</c>. Both features were removed from
 /// Astro, and both assertions sit in a <c>catch</c> block, so the upstream tests pass when the build does not throw (it does
 /// not, Astro only logs these messages). The adapter under test declares <c>i18nDomains</c> as unsupported and the other
-/// features it can be asked about as stable, so the first test checks the message that Astro logs for that feature, and that
-/// the build is not stopped by it. The second test has no counterpart: nothing is left of <c>build.split</c>.
+/// features it can be asked about as stable, so the test that keeps the title of the first upstream test checks the message that
+/// Astro logs for that feature, and that the build is not stopped by it. The second upstream test has no counterpart: nothing
+/// is left of <c>build.split</c>.
 /// <para>
 /// Astro 7 only checks <c>i18nDomains</c> when <c>i18n.domains</c> is set, the output is <c>server</c> and <c>site</c> is not
 /// set, but it requires <c>site</c> as soon as a domain is listed. An empty <c>domains</c> record is therefore the one config
@@ -20,7 +21,7 @@ namespace AstroJint.Conformance.CoreBuild;
 [Trait("Upstream", "core/featuresSupport.test.ts")]
 public class FeaturesSupportTests(SiteHost sites)
 {
-    [Fact(DisplayName = "should error if the adapter doesn't support edge middleware (reports i18nDomains, the feature the adapter does not support)")]
+    [Fact(DisplayName = "should error if the adapter doesn't support edge middleware")]
     public async Task ReportsTheFeatureThatTheAdapterDoesNotSupport()
     {
         var site = await sites.GetAsync("cb-server-entry", new
