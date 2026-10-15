@@ -1,0 +1,15 @@
+{
+  "name": "conformance-cb-container",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "dependencies": {
+    "@astrojs/react": "^7.0.1",
+    "@astrojs/vue": "^7.0.3",
+    "astro": "^7.3.6",
+    "astro-adapter-jint": "workspace:*",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "vue": "^3.5.43"
+  }
+}

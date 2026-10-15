@@ -5,8 +5,8 @@ namespace AstroJint.Conformance.CoreBuild;
 /// <summary>The JavaScript files that a build emits for the browser (<c>dist/client</c>) and the imports between them.</summary>
 internal static partial class ClientScripts
 {
-    /// <summary>Static imports of another chunk: <c>from "./chunk.js"</c>, with or without a query string.</summary>
-    [GeneratedRegex("""from\s*["'`](\.\.?/[^"'`]+\.(?:js|mjs)(?:\?[^"'`]*)?)["'`]""")]
+    /// <summary>Static imports of another chunk: <c>from "./chunk.js"</c> or <c>import "./chunk.js"</c>, with or without a query string.</summary>
+    [GeneratedRegex("""(?:from|import)\s*["'`](\.\.?/[^"'`]+\.(?:js|mjs)(?:\?[^"'`]*)?)["'`]""")]
     public static partial Regex StaticImport { get; }
 
     /// <summary>Dynamic imports of another chunk: <c>import("./chunk.js")</c> (Rolldown writes template literals).</summary>
