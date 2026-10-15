@@ -9,9 +9,9 @@ namespace AstroJint.Conformance.CoreUnits;
 /// pipeline of the host inside Jint. The <c>Host</c> header is <c>example.com</c> so that the request URL, which the host
 /// builds from it, has the origin of the upstream URLs (<c>http://example.com</c>). The three tests about the scheme of the
 /// origin, and the ones that post to <c>api.example.com</c>, use the TLS site of the harness, whose request URL is
-/// <c>https://…</c>. An unsafe request carries a one-byte body: a request whose body is empty reaches Astro without its
-/// <c>Content-Type</c> (GAP-UNITS-4), which changes what the check sees; the extra test at the end sends the body-less form of
-/// <c>allows cross-origin POST with application/json</c>, which is skipped for that reason.
+/// <c>https://…</c>. The requests have no body, like upstream's mock requests; a request with a <c>Content-Type</c> and no body
+/// reaches Astro with its header since the host keeps the content headers of an empty body (GAP-UNITS-4, fixed in
+/// <c>4024a9d</c>; the tests used to carry a one-byte body to get the header through).
 /// </para>
 /// <para>
 /// Not ported: <c>allows any method on prerendered routes</c> sets <c>isPrerendered</c> on a mock context. The host never renders
@@ -56,20 +56,18 @@ public class CsrfTests(SiteHost sites)
         "application/octet-stream",
     ];
 
-    // The mock requests of upstream have no body; on the wire an unsafe request has one, and it is what lets the Content-Type through.
-    private async Task<(int Status, string Body)> SendAsync(string method, string host, bool https, bool withBody, params (string Name, string Value)[] headers)
+    // Like upstream's mock requests, the requests have no body (the harness sends an empty one when there is a Content-Type to carry).
+    private async Task<(int Status, string Body)> SendAsync(string method, string host, bool https, params (string Name, string Value)[] headers)
     {
         var site = await sites.GetAsync(Fixture, https: https);
-        var carriesContentType = headers.Any(header => header.Name == "Content-Type");
-        HttpContent? content = withBody && carriesContentType ? new ByteArrayContent([(byte)'x']) : null;
 
-        using var response = await site.SendAsync(new HttpMethod(method), "/csrf", content, [.. headers, ("Host", host)]);
+        using var response = await site.SendAsync(new HttpMethod(method), "/csrf", null, [.. headers, ("Host", host)]);
 
         return ((int)response.StatusCode, await response.Content.ReadAsStringAsync());
     }
 
     private Task<(int Status, string Body)> SendAsync(string method, params (string Name, string Value)[] headers) =>
-        SendAsync(method, "example.com", https: false, withBody: true, headers);
+        SendAsync(method, "example.com", https: false, headers);
 
     [Fact(DisplayName = "allows GET requests regardless of origin")]
     public async Task Get_IsNeverChecked()
@@ -242,7 +240,7 @@ public class CsrfTests(SiteHost sites)
     public async Task CrossSitePost_WithANonFormContentType_IsAllowed(string contentType, string secFetchSite)
     {
         var (status, _) = await SendAsync(
-            "POST", "api.example.com", https: true, withBody: true,
+            "POST", "api.example.com", https: true,
             Origin("https://example.com"), ContentType(contentType), SecFetchSite(secFetchSite));
 
         Assert.Equal(200, status);
@@ -260,7 +258,7 @@ public class CsrfTests(SiteHost sites)
     public async Task Post_WithTheSameHttpsOrigin_IsAllowed()
     {
         var (status, _) = await SendAsync(
-            "POST", "example.com", https: true, withBody: true, Origin("https://example.com"), ContentType("multipart/form-data"));
+            "POST", "example.com", https: true, Origin("https://example.com"), ContentType("multipart/form-data"));
 
         Assert.Equal(200, status);
     }
@@ -269,7 +267,7 @@ public class CsrfTests(SiteHost sites)
     public async Task Post_WithAnOriginOfAnotherScheme_IsBlocked()
     {
         var (status, _) = await SendAsync(
-            "POST", "example.com", https: true, withBody: true, Origin("http://example.com"), ContentType("multipart/form-data"));
+            "POST", "example.com", https: true, Origin("http://example.com"), ContentType("multipart/form-data"));
 
         Assert.Equal(403, status);
     }
@@ -278,7 +276,7 @@ public class CsrfTests(SiteHost sites)
     public async Task Post_WithAMalformedOrigin_IsBlocked()
     {
         var (status, _) = await SendAsync(
-            "POST", "example.com", https: true, withBody: true, Origin("null"), ContentType("multipart/form-data"));
+            "POST", "example.com", https: true, Origin("null"), ContentType("multipart/form-data"));
 
         Assert.Equal(403, status);
     }
@@ -305,16 +303,5 @@ public class CsrfTests(SiteHost sites)
         var (_, body) = await SendAsync("POST", Origin("http://evil.com"), ContentType("multipart/form-data"));
 
         Assert.Equal("Cross-site POST form submissions are forbidden", body);
-    }
-
-    [Fact(
-        DisplayName = "allows cross-origin POST with application/json, without a body",
-        Skip = "GAP-UNITS-4: the host builds the request without a body when the body is empty and so drops its Content-Type (AstroHttpBridge.CreateRequestAsync): the origin check then sees a request without a content type and answers 403, where Node, which keeps the header, answers 200")]
-    public async Task CrossOriginPost_WithAJsonContentTypeAndNoBody_IsAllowed()
-    {
-        var (status, _) = await SendAsync(
-            "POST", "example.com", https: false, withBody: false, Origin("http://evil.com"), ContentType("application/json"));
-
-        Assert.Equal(200, status);
     }
 }
