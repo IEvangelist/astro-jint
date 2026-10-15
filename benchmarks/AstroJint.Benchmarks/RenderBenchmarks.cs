@@ -15,10 +15,20 @@ public class RenderBenchmarks
     private IHeaderDictionary _postHeaders = null!;
     private MemoryStream _postBody = null!;
 
+    /// <summary>The default 128 MiB limit on what JavaScript allocates per request, or no limit.</summary>
+    [Params(true, false)]
+    public bool MemoryLimit { get; set; }
+
     [GlobalSetup]
     public async Task SetupAsync()
     {
-        _site = await BenchmarkSite.StartAsync(poolSize: 1, warmUp: true, withLocals: true);
+        _site = await BenchmarkSite.StartAsync(poolSize: 1, warmUp: true, withLocals: true, configure: options =>
+        {
+            if (!MemoryLimit)
+            {
+                options.MemoryLimitBytes = null;
+            }
+        });
         _headers = FakeHttp.BrowserHeaders();
 
         var body = Encoding.UTF8.GetBytes("{\"message\":\"" + new string('x', 1000) + "\"}");

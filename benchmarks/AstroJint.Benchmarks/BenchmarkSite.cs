@@ -49,7 +49,8 @@ internal sealed class BenchmarkSite : IAsyncDisposable
     /// <param name="warmUp">Create the engines before the first request.</param>
     /// <param name="withLocals">Fill <c>Astro.locals</c> like the sample host does.</param>
     /// <param name="staticFileCacheBytes">Memory for prerendered files; <see langword="null"/> keeps the default, 0 serves them from disk.</param>
-    public static async Task<BenchmarkSite> StartAsync(int poolSize = 1, bool warmUp = true, bool withLocals = true, long? staticFileCacheBytes = null)
+    /// <param name="configure">Applied last, to change any other option.</param>
+    public static async Task<BenchmarkSite> StartAsync(int poolSize = 1, bool warmUp = true, bool withLocals = true, long? staticFileCacheBytes = null, Action<AstroOptions>? configure = null)
     {
         var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
         {
@@ -72,6 +73,8 @@ internal sealed class BenchmarkSite : IAsyncDisposable
             {
                 options.LocalsFactory = context => new { traceId = context.TraceIdentifier, user = context.User.Identity?.Name };
             }
+
+            configure?.Invoke(options);
         });
 
         var host = builder.Build();
