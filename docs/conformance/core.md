@@ -53,6 +53,10 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
 | `ssr-preview.test.ts` | 1 | 0 | 0 | 0 | 1 | none | Preview only. |
 | `astro-preview-headers.test.ts` | 2 | 0 | 0 | 0 | 2 | none | Preview only. |
 | `astro-preview-allowed-hosts.test.ts` | 5 | 0 | 0 | 0 | 5 | none | Preview only. |
+| `core-image.test.ts` | 117 | 10 | 8 | 2 | 97 | `Core\CoreImageTests.cs` | Fixture `core-image-ssr` (the upstream SSR fixture, plus `src/custom-endpoint.ts` of `core-image` and a `public/pixel.svg` that upstream does not have; `base`, `trailingSlash`, the data-URL pattern and the custom endpoint are JSON config variants). The 20 `it`s with a test are the on-demand groups (`dev ssr`, `prod ssr`, `prod ssr - SVG format validation`, `trailing slash on the endpoint`, the two SSR tests of `support base option correctly`) and `custom endpoint`; 18 run and pass, and the two gaps, GAP-CORE-5 and GAP-CORE-6, are skipped; two more tests than upstream (pass). The 97 N/A are explained below. |
+| `image-service-targets.test.ts` | 4 | 0 | 0 | 1 | 3 | `Core\ImageServiceTargetsTests.cs` | Fixture `core-image-ssr` (the `srcAlias` and `wrappingPrerenderer` switches). The `it` of the service that Vite resolves runs for two prerenderers upstream: the default one is ported and passes, the wrapping one is GAP-CORE-4 (skipped), so the `it` is counted as a gap. The other three need `image.service.{build,runtime}`, which Astro 7.3.8 does not implement, or a dev server. One more test than upstream (passes). |
+
+Total: 43 files, 376 `it`s = 148 ported, 78 adapted, 9 gap, 141 N/A.
 
 ## Differences
 
@@ -262,6 +266,28 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
   `./.root/client/` and `./.root/server/`) and checks the same files, `cars.json` and `entry.mjs`; this adapter records the directories in
   `astro-jint.json`, so the port also requests the public file and an on-demand page from the host, which only works if the host reads them from there. It
   also asserts that the default `client` and `server` directories were not created.
+- `core-image.test.ts`: the upstream prod builds set `image.endpoint.entrypoint` to `astro/assets/endpoint/node`, which reads images from the file
+  system; the port leaves the option alone, so the endpoint is the adapter's `astro-adapter-jint/image-endpoint` (it reads the local images through
+  the host and shares Astro's `handleImageRequest`, so the status codes and bodies of the checks are Astro's). The image service is the adapter's
+  passthrough one where upstream uses a stub (`testImageService()`), and neither transforms an image. The endpoint answers with the type it finds in
+  the bytes, so the three `image/webp` assertions for `f=webp` on a JPEG (`dev ssr` `serves the image at /_image` and `returns HEAD method ok for /_image`,
+  `prod ssr` `can load images from public dir`) are `image/jpeg` here. `dev ssr` runs the dev server with `base: 'some-base'` and asks for
+  `/src/assets/penguin1.jpg?origWidth=...`; the port uses the production build with `base: '/blog'` (the base of the SSR test of the base group) and the
+  `href` that the page gives its own image (`/blog/_astro/penguin1.<hash>.jpg`), and requests `/blog/api` because the production app answers only inside the
+  base. `endpoint handle malformed requests` appends each bad path to the URL as it is and `new Request()` parses the URL (drops tabs, encodes control
+  characters); the port serializes the query the same way and sends it over a raw socket, which does not touch the request target, and lists the two paths for
+  which `isRemotePath()` is true (they start with a backslash, and get 403). `prerendered routes images are built` reads
+  `client/prerender/index.html` and the image file from the output; the port reads the page from the host, checks the file in `dist/client` and also requests
+  it. The first two `trailing slash on the endpoint` tests read `#local img` of the static `core-image` fixture on a dev server; here the page is the
+  on-demand catch-all of `core-image-ssr`, built with `trailingSlash: 'always'` and `'never'` (the third one, with the unencoded `//` pattern, runs as upstream on a
+  default build). `custom endpoint works` is the only `dev` test of an adapter-facing behaviour: the user's `image.endpoint.entrypoint` has to win over the
+  adapter's (it only sets its own when the option is unset), so the port builds `core-image-ssr` with `./src/custom-endpoint.ts` (copied from `core-image`) and requests
+  the page's own image URL.
+- `image-service-targets.test.ts`: the port requests `/prerender` from the host where upstream reads `client/prerender/index.html`; the generated image is a
+  file in `dist/client` in both. The Vite alias `~` is the `srcAlias` switch of the fixture config (a JSON config cannot carry the absolute path), the
+  wrapping prerenderer is the `wrappingPrerenderer` switch, and a unique `cacheDir` per variant that the test deletes first gives the fresh asset cache that
+  upstream gets from its own `cacheDir`. The non-upstream test requests the on-demand `/` page, to show that the engine also runs the aliased TypeScript
+  service.
 
 ## Gaps
 
@@ -308,11 +334,33 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
   `index.ts`), as a non-legacy adapter too, so the environment has no input and Vite falls back to an HTML one. The prerenderer that upstream registers
   delegates everything to the default one (`setPrerenderer((defaultPrerenderer) => ...)`), which changes nothing: any `setPrerenderer` call fails. Upstream
   does not meet it because `testAdapter()` is a legacy adapter (`serverEntrypoint: '@my-ssr'`, no `entrypointResolution`); the one with `'auto'` is
-  `selfTestAdapter()`, which only `server-entry.test.ts` uses. Skipped tests: the three of `Astro custom prerenderer` in `AstroBasicTests`. Workaround
+  `selfTestAdapter()`, which only `server-entry.test.ts` uses. Skipped tests: the three of `Astro custom prerenderer` in `AstroBasicTests` and
+  `ImageServiceTargetsTests.WrappingPrerenderer_GeneratesImages_WithTheAliasedService` (the instance of the one `it` of `build image service resolved by Vite` whose
+  integration wraps the prerenderer; it stops in the same place, and the default-prerenderer instance passes). Workaround
   (the non-upstream tests of the class, which pass): a Vite plugin that sets `build.rolldownOptions.input` of the `prerender` environment to
   `astro/entrypoints/prerender` (the `conformance.prerenderEntry` switch of `core-astro-basic`). Suspected area: either an Astro defect (the code and the
   comment disagree) or the `'auto'` of this adapter, which could give the environment its input in `astro:config:setup`. Reproduce: run the three tests
-  without their `Skip` (the constant `GapCustomPrerenderer` of the class).
+  without their `Skip` (the constant `GapCustomPrerenderer` of the class) or the wrapping-prerenderer test (the constant `WrappingPrerendererGap` of
+  `ImageServiceTargetsTests`).
+- `GAP-CORE-5`: the engine cannot `fetch()` a `data:` URL, so the image endpoint answers 500 for an image that is a data URL. With
+  `image.remotePatterns: [{ protocol: 'data' }]`, `GET /_image?href=<data:image/svg+xml;base64,...>&f=svg` answers `500 Internal Server Error`, where Node
+  answers 200 `image/svg+xml`. `fetch('data:...')` in the engine rejects with `TypeError: Failed to fetch` for a string, a `URL` and a `Request`, with
+  `AstroOptions.FetchUrlFilter` allowing every URL (`new URL('data:...')` itself works): the fetch of Jint is HTTP(S) only (its assembly has no
+  `data:` handling), where the Fetch specification decodes the data URL into a response. The PNG data URL with `f=svg` is answered 403 before any fetch
+  (the format check), so that test passes. Every endpoint, route or component of a site that loads `data:` URLs with `fetch()` is affected, not only
+  the image endpoint. Suspected area: the `fetch` of the engine (the Jint web APIs, which the host configures with `AstroOptions.FetchUrlFilter`): it
+  could answer a `data:` URL itself. Skipped
+  test: `CoreImageTests.Endpoint_AllowsSvgFormat_ForAnSvgDataUri`; the non-upstream `Endpoint_AllowsSvgFormat_ForAnSvgFile` shows that an SVG that the endpoint can
+  read is served with `image/svg+xml`. Reproduce: run the skipped test without its `Skip`.
+- `GAP-CORE-6` (minor): a local `href` with parent directory segments (`/../../../.env`, `/foo/../../../.env`, `/foo\..\..\.env`, `/%2e%2e/.env`) makes the
+  image endpoint answer `404 Not Found` where Astro's endpoint answers `400 Invalid request`. `loadLocalImage` in
+  `packages/astro-adapter-jint/src/image-endpoint.ts` resolves `'.' + href` against `http://local.invalid/`, and the URL parser drops the `..` segments
+  that go above the root (`/../../../.env` becomes `/.env`), so the check for a path outside the output (`isParentDirectory` and `invalid-path` in Astro's
+  Node endpoint) never sees it. Nothing outside `dist/client` can be read this way, because the host looks the path up in the client output only
+  (`readClientBytes`): the non-upstream test `Endpoint_Answers404_ForParentDirectorySegments_WithoutServingAFileOutsideTheClientOutput` requests
+  `/../astro-jint.json` and `/../server/entry.mjs`, two files that exist next to `client`, and gets 404 for both. Suspected area: `loadLocalImage`
+  could resolve against a base with some depth (for example `http://local.invalid/x/`) and answer `invalid-path` when the result is not below it. Skipped test:
+  `CoreImageTests.Endpoint_Rejects_LocalPathsWithParentDirectorySegments`. Reproduce: run it without its `Skip`.
 
 ## Not applicable
 
@@ -355,3 +403,31 @@ expresses them through what an HTTP client or the host can say: `Host` and forwa
 - `astro-preview-allowed-hosts.test.ts` (5 tests): the host-name allow-list of Vite's preview server (`vite.preview.allowedHosts`, `server.allowedHosts`,
   `true`), tested with raw requests with a custom `Host` header against `astro preview`. The counterpart in the host is the `AllowedHosts` setting
   (host filtering) of the ASP.NET Core application, which does not belong to this adapter.
+- `core-image.test.ts` / `dev` (56 of its 57 `it`s; `custom endpoint` is ported): they start Astro's dev server on the static `core-image` project, which
+  has no adapter, and assert what the dev server renders: the `basics` (22), `vite-isms` (3), `remote` (12), `markdown` (5), `getImage` (2),
+  `content collections` (7), `regular img tag` (2) and `custom service` (3) tests read the HTML attributes of `<Image>`, `<Picture>` and `getImage()` with dev-server
+  URLs (`/_image?href=/src/assets/...&origWidth=...`, `/@fs/...`, `?url` and `?raw` imports) and Vite's transform errors, and the `remote` ones also
+  fetch `avatars.githubusercontent.com` and a local redirect server. The same components run in the engine for an on-demand page (the `#local img` of the
+  ported catch-all page is one), but nothing that these `it`s assert is a behaviour of this adapter or host: the dev server is not part of the host and the
+  URLs are not those of a production build. The groups that exercise the adapter are ported above.
+- `core-image.test.ts` / `proper errors` (8): they start the dev server on `core-image-errors` and read the messages that Astro's internal logger receives (the
+  `_logger` option of `startDevServer`, an internal API) for pages that misuse `getImage()` (no parameter, an undefined `src`, an ESM import passed directly),
+  use an APNG (`<Image>`, `<Picture>` and a plain `<img>`) or reference a Markdown image that does not exist. The errors come from Astro's component code; a
+  production host answers such a page with a 500 and logs the error to its own logger, and a missing Markdown image is an error of the Vite transform of the file,
+  which a production build reports as a failing build. Nothing here depends on the adapter or the host.
+- `core-image.test.ts` / `support base option correctly` (5 of its 7 `it`s; the two SSR ones are ported): builds the static `core-image-ssg` project with
+  `base: '/blog'` and no adapter, and reads the `src` prefix in the generated `index.html` files (component, `getImage()`, direct import, Markdown, content
+  collection). It checks Astro's build, and the host would only serve the files.
+- `core-image.test.ts` / `build ssg` (21) and `custom service in build` (1): static builds with no adapter (and the `testImageService()` stub, which an adapter leaves alone)
+  that read the files that Astro's build pipeline wrote to `dist`: the written images with their names and extensions, the cache entries in `node_modules/.astro`
+  and the `quality`, `format`, `densities` and `srcset` outputs. Image generation at build time runs in Node and does not involve the adapter or the host,
+  which would only serve the files; they check Astro's build, not a request.
+- `core-image.test.ts` / `build ssg with 404 remote images` (2): a static build with no adapter that has to fetch a remote image that does not exist (and one that
+  does) over the network.
+- `core-image.test.ts` / `build data url` (4): a static build with no adapter that reads the files written to `dist` for `data:` image sources (short hash
+  names, extensions, the written files and the inferred size). It uses the default sharp service, which this adapter replaces by its passthrough one (that
+  writes no transformed files), so the outputs would not be the same.
+- `image-service-targets.test.ts` / `separate build and runtime image services` (2) and `... in dev` (1, run for two kinds of page): they set
+  `image.service` to `{ build, runtime }`. Astro 7.3.8 (the version this repository builds with) does not implement that option: its config schema drops the
+  `build` and `runtime` keys, so the site is built with the default service and the pages get none of the attributes the tests look for (the upstream
+  checkout is ahead of that release). The tests cannot pass with that Astro whatever the adapter, and the dev one also needs a dev server.
